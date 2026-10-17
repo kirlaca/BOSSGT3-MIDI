@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GT-3 Web MIDI – User guide</title>
+  <link rel="alternate" hreflang="hu" href="utmutato.html">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Michroma&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Share+Tech+Mono&display=swap">
+  <link rel="stylesheet" href="pages.css">
+</head>
+<body>
+<div class="wrap">
+  <nav class="pagenav" aria-label="Pages">
+    <a class="pagenav-brand" href="index.html">GT-3 Editor · Web MIDI</a>
+    <div class="pagenav-links">
+      <a href="utmutato.html" hreflang="hu" lang="hu">Magyar</a>
+      <a href="guide.html" aria-current="page">Guide</a>
+      <a class="open" href="index.html">Open the editor</a>
+    </div>
+  </nav>
+  <div class="doc">
+    <aside class="toc" aria-label="Contents">
+      <span class="label">Contents</span>
+      <ol>
+        <li class="plain"><a href="#what">What is this?</a></li>
+        <li value="1"><a href="#need">What you need</a></li>
+        <li value="2"><a href="#start">Starting</a></li>
+        <li value="3"><a href="#connect">Connecting</a></li>
+        <li value="4"><a href="#header">The header</a></li>
+        <li value="5"><a href="#effects">Effects page</a></li>
+        <li value="6"><a href="#assign">EXP / CTL / Assign</a></li>
+        <li value="7"><a href="#library">Library page</a></li>
+        <li value="8"><a href="#system">System page</a></li>
+        <li value="9"><a href="#sending">What reaches the GT-3?</a></li>
+        <li value="10"><a href="#files">Saving and loading</a></li>
+        <li value="11"><a href="#problems">Troubleshooting</a></li>
+      </ol>
+    </aside>
+
+    <article class="prose">
+      <header class="stack">
+        <span class="label">GT-3 Editor · Web MIDI</span>
+        <h1>User guide</h1>
+        <p class="lede">An editor for the BOSS GT-3 guitar multi-effects that runs entirely in the browser. The patch's effects appear as pedals, in the order of the patch's own effect chain. The browser talks to the GT-3 directly through a USB-MIDI interface: nothing to install, no server.</p>
+      </header>
+
+      <p class="note warn"><strong>Status:</strong> the editor is complete, but <strong>it has not been tried with a real GT-3 yet</strong> – only against a simulated unit and the 325 real patch files that come with the Qt FloorBoard. On first use, read everything on the <strong>Library</strong> page and save it to a file (<a href="#files">section 10</a>) before writing anything to the unit.</p>
+
+      <h2 id="what">What is this?</h2>
+      <p>A browser version of the old Qt <em>GT-3 FxFloorBoard</em>. It sends the same MIDI messages and reads and writes the same <code>.syx</code> files, but it is a single web page that runs in Chrome or Edge on any computer.</p>
+      <p>It has four pages, on the tabs below the header:</p>
+      <ul>
+        <li><strong>Effects</strong>: the patch's 12 effects as pedals, the chain order and every effect parameter;</li>
+        <li><strong>EXP / CTL / Assign</strong>: what the expression pedal, the CTL pedal and the 8 assigns control;</li>
+        <li><strong>Library</strong>: all 340 patches in a list; read, write, copy and save many at once;</li>
+        <li><strong>System</strong>: the GT-3's own settings (tuner, output, MIDI, manual mode).</li>
+      </ul>
+
+      <h2 id="need"><span class="num">1</span>What you need</h2>
+      <ul>
+        <li><strong>Browser:</strong> Chrome or Edge on Windows, macOS, Linux or Android. <strong>Safari and iPhone/iPad won't work</strong> – they have no Web MIDI.</li>
+        <li><strong>A USB-MIDI interface.</strong> A decent, opto-isolated one (e.g. Roland UM-ONE mkII). Cheap "USB2.0-MIDI" cables often pass program changes but not SysEx (patch read and write).</li>
+        <li>On Android also a <strong>USB OTG adapter</strong>.</li>
+      </ul>
+
+      <h3 id="wiring">Wiring</h3>
+      <div class="wiring" role="img" aria-label="Computer or phone, USB, USB-MIDI interface, two DIN plugs, GT-3 rear panel">
+        <span class="node">Computer / phone</span><span class="wire">USB</span>
+        <span class="node">USB-MIDI interface</span><span class="wire">2 × DIN</span>
+        <span class="node unit">GT-3 rear panel</span>
+      </div>
+      <div class="cross">
+        <div><span class="jackname">interface OUT</span><span class="arrow">→</span><span class="jackname unit">GT-3 MIDI IN</span></div>
+        <div><span class="jackname">interface IN</span><span class="arrow">←</span><span class="jackname unit">GT-3 MIDI OUT</span></div>
+      </div>
+      <p>The two plugs go in <strong>crossed over</strong>. Some cables are labelled the other way round (with where the plug goes) – if patch changes don't work, swap them. The editor needs <strong>both directions</strong>: without the GT-3's MIDI OUT it can send but not read.</p>
+
+      <h2 id="start"><span class="num">2</span>Starting</h2>
+      <p>The editor is <code>index.html</code> in the <code>webmidi</code> folder. Three ways to open it:</p>
+      <ul>
+        <li><strong>From a web address (HTTPS):</strong> if it is hosted somewhere, open its address. This is also how it works on a phone.</li>
+        <li><strong>Straight from the file:</strong> double-click <code>index.html</code>. If the browser doesn't ask for MIDI access this way, use the next option.</li>
+        <li><strong>From a local server:</strong> in the project folder run <code>python -m http.server -d webmidi</code> and open the <code>http://localhost:…</code> address it prints.</li>
+      </ul>
+      <p class="note">On Windows only one program can use a MIDI port at a time. If the Qt FloorBoard or a DAW holds the interface, close it.</p>
+
+      <h2 id="connect"><span class="num">3</span>Connecting to the GT-3</h2>
+      <ol>
+        <li>Click <strong>Offline</strong> in the top right corner.</li>
+        <li>The first time, the browser <strong>asks for permission to use MIDI devices (and SysEx)</strong>: allow it. If you blocked it by mistake, re-enable it in the site settings (the icon at the left of the address bar).</li>
+        <li>Either:
+          <ul>
+            <li><strong>Auto-detect</strong>: looks for the GT-3 on every port and all 32 device IDs and connects by itself. Needs working SysEx in both directions.</li>
+            <li>By hand: pick the <strong>Output (to GT-3)</strong> and <strong>Input (from GT-3)</strong> ports, the <strong>Device ID</strong> and the <strong>Patch change channel</strong> (the GT-3's MIDI receive channel), then <strong>Use these ports</strong>.</li>
+          </ul>
+        </li>
+        <li>Once connected the label turns green and shows the port and device ID. <strong>Go offline</strong> disconnects.</li>
+      </ol>
+      <p>The editor remembers the ports and reconnects on reload if the interface is plugged in. Unplug it and it goes offline. While offline every edit stays in the editor.</p>
+      <p class="note"><strong>Check:</strong> after connecting, change patch with ◀ ▶. If the GT-3's display follows, patch changes work. If the name of a patch not read before shows up in the editor, SysEx works too.</p>
+      <p class="note">Auto-detect takes the patch change channel from the device ID (device ID 1 = channel 1). Whether that always holds on the GT-3 is not checked yet – if patch changes don't work, set it by hand to the <em>Rx channel</em> shown on the System page.</p>
+
+      <h2 id="header"><span class="num">4</span>The header</h2>
+      <p>The header is the same on every page and is always about the patch being edited.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Item</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td>◀ ▶ and the display</td><td>Patch change across all 340 patches (also <kbd>←</kbd> <kbd>→</kbd>). The red LEDs show the patch number: <code>U01-1</code>–<code>U35-4</code> are the 140 user patches, <code>P36-1</code>–<code>P85-4</code> the 200 presets. The green LCD shows the patch name and its PreAmp / OD types.</td></tr>
+          <tr><td>The patch name</td><td>Click it to rename the patch (up to 11 characters). <kbd>Enter</kbd> keeps it, <kbd>Esc</kbd> cancels.</td></tr>
+          <tr><td><strong>EDIT</strong></td><td>Lit while the patch has changes that are not stored yet.</td></tr>
+          <tr><td><strong>Write</strong></td><td>Stores the edited sound in a user patch; a dialog asks which one, so a preset can be saved to a user slot of your own. Presets can't be overwritten.</td></tr>
+          <tr><td><strong>Revert</strong></td><td>Throws the changes away: back to the patch as it was when you selected it.</td></tr>
+          <tr><td><strong>Auto write</strong></td><td>When on, the sound is stored in the current user patch 5 seconds after the last change (not for presets). The bar along the Write button shows the countdown; changing patch writes at once.</td></tr>
+          <tr><td><strong>Init patch</strong></td><td>Loads the init ("default") patch into the editor; Write stores it.</td></tr>
+          <tr><td><strong>Load file…</strong> / <strong>Save file…</strong></td><td>Files, see <a href="#files">section 10</a>.</td></tr>
+          <tr><td><strong>Read GT-3</strong></td><td>Reads all 140 user patches. Only when connected.</td></tr>
+        </tbody>
+      </table></div>
+
+      <h2 id="effects"><span class="num">5</span>Effects page</h2>
+      <h3>Patches (the patch map)</h3>
+      <p>User and Preset view, 8 banks per page, paged with ‹ ›. Patches not read yet show <code>- - -</code>; when connected, selecting one reads it from the GT-3. A <strong>dashed yellow border</strong> marks a patch changed only in the editor (e.g. loaded from a file or written offline) – the GT-3 still holds the old one.</p>
+
+      <h3>FX Chain</h3>
+      <p>On the GT-3 the effect order is set per patch. The bar shows the patch's own order, and the pedals stand in it too. <strong>Drag</strong> an effect to its new place, or focus it and move it with <kbd>Alt</kbd> + <kbd>←</kbd> / <kbd>→</kbd>. Clicking an effect opens its detail panel.</p>
+
+      <h3>The pedals</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Block</th><th>What it is</th><th>Types</th></tr></thead>
+        <tbody>
+          <tr><td><span class="chip" style="--c:#6d57a6;--ink:#fff">SFX</span></td><td>Special effect</td><td>Acoustic Sim, Slow Gear, Anti-Feedbacker, FeedBacker, Picking Simulator, Tremolo / Pan</td></tr>
+          <tr><td><span class="chip" style="--c:#2f6cc8;--ink:#fff">CS</span></td><td>Compressor</td><td>Compressor or Limiter</td></tr>
+          <tr><td><span class="chip" style="--c:#2a2b30;--ink:#e8e8ea">WAH</span></td><td>Wah</td><td>Pedal Wah or Auto Wah</td></tr>
+          <tr><td><span class="chip" style="--c:#f1c02c">OD/DS</span></td><td>Overdrive / Distortion – an <strong>analog circuit</strong> in the GT-3</td><td>12 types from Natural OD to Fuzz, plus <em>External</em>: a pedal in the rear EXT OD/DS SEND / RETURN loop plays in its place</td></tr>
+          <tr><td><span class="chip" style="--c:#c39b45">PRE</span></td><td>Preamp + speaker simulation</td><td>14 amps (JC-120, Clean Twin, … MS 1959, Metal 5150, AC. Guitar), Bright, Gain, mic position</td></tr>
+          <tr><td><span class="chip" style="--c:#d5d8dd">EQ</span></td><td>4-band parametric EQ</td><td>with faders; the mid bands' frequency and Q are in the detail panel</td></tr>
+          <tr><td><span class="chip" style="--c:#2e9a8c;--ink:#fff">MOD</span></td><td>Modulation and more</td><td>Harmonist, Flanger, Phaser, Auto Riff, Sub EQ, 2x2 Chorus, Short Delay, Humanizer, Vibrato, Guitar Synth, Ring Mod, Slicer</td></tr>
+          <tr><td><span class="chip" style="--c:#ececec">DD</span></td><td>Delay</td><td>Single or Tap</td></tr>
+          <tr><td><span class="chip" style="--c:#7cc3e6;--ink:#0f1f28">CE</span></td><td>Chorus</td><td>Mono or Stereo</td></tr>
+          <tr><td><span class="chip" style="--c:#3b4966;--ink:#f2f4f8">RV</span></td><td>Reverb</td><td>Room 1/2, Hall 1/2, Plate</td></tr>
+          <tr><td><span class="chip" style="--c:#b8bdc5">NS</span></td><td>Noise suppressor</td><td>Threshold, Release</td></tr>
+          <tr><td><span class="chip" style="--c:#1e1f23;--ink:#e8e8ea">FV</span></td><td>Foot volume</td><td>no on/off switch; the expression pedal moves it</td></tr>
+        </tbody>
+      </table></div>
+      <p>At the end of the row is the <strong>Master</strong> module: the patch's output level and BPM (the tempo the note-value timings follow).</p>
+      <ul>
+        <li><strong>On / off:</strong> click the pedal's footswitch. A pedal that is on lights its CHECK LED and a red bar below it.</li>
+        <li><strong>Type:</strong> on SFX, OD/DS, PRE, MOD and RV use the green ◀ ▶ window (click the name to pick from a list); on CS, WAH and DD the switch. Changing the type swaps the pedal's knobs.</li>
+        <li><strong>Detail panel:</strong> a pedal only carries its main knobs. Click its <strong>name plate</strong> and a panel opens at the bottom with <strong>every</strong> parameter of that type, in groups. <kbd>Esc</kbd> or ✕ closes it.</li>
+      </ul>
+      <p><strong>Knobs:</strong> drag up or down with the mouse or a finger, use the mouse wheel (one step per notch), or focus one and use the keyboard: <kbd>↑</kbd> / <kbd>↓</kbd> one step, <kbd>PgUp</kbd> / <kbd>PgDn</kbd> a bigger step, <kbd>Home</kbd> / <kbd>End</kbd> minimum / maximum. On rate knobs the values above 100 are note values: <code>1/8</code> eighth, <code>1/8T</code> triplet, <code>1/8.</code> dotted.</p>
+
+      <h2 id="assign"><span class="num">6</span>EXP / CTL / Assign page</h2>
+      <p>These are part of the patch too: each patch can make the pedals do something different. On the left are the 10 controllers: the <strong>EXP pedal</strong>, the <strong>CTL pedal</strong> and <strong>Assign 1–8</strong>, each with whether it is on, what it controls and what moves it. For the selected one:</p>
+      <ul>
+        <li>The switch next to its name turns it on and off.</li>
+        <li><strong>Target:</strong> the 207 possible targets (any parameter of any effect, the master, manual mode, the tuner), grouped by effect. <strong>Min</strong> and <strong>Max</strong> are shown in the target's own units – milliseconds for Delay Time, for example. Picking a new target sets Min to its minimum and Max to its maximum. With Min above Max the control should work the other way round (not yet checked on the unit).</li>
+        <li><strong>Source</strong> (assigns only): what moves it – the EXP pedal, the CTL pedal, the external SUB EXP and SUB CTL 1 / 2, the <em>Internal Pedal</em>, the <em>Wave Pedal</em>, or an incoming MIDI CC. <strong>Mode:</strong> Normal (follows the pedal) or Toggle (each press switches). The <strong>active range</strong> is the part of the source's travel the control acts in.</li>
+        <li><strong>Response:</strong> the curve shows what target value each source position 0–127 gives.</li>
+        <li><strong>Internal pedal:</strong> a virtual pedal that, when triggered (e.g. by a patch change or the CTL pedal), "presses itself" over the given time along the chosen curve. <strong>Wave pedal:</strong> moves the target continuously with the chosen waveform and rate. These cards are dimmed when they are not the source.</li>
+      </ul>
+
+      <h2 id="library"><span class="num">7</span>Library page</h2>
+      <p>All 340 patches in a table: name, PreAmp and OD/DS type, the SFX and MOD types when on, the effects that are on as coloured dots (in chain order), and the state:</p>
+      <ul>
+        <li><strong>Not read</strong> – not read from the GT-3 yet;</li>
+        <li><strong>Editor only</strong> – changed in the editor, the GT-3 still has the old one;</li>
+        <li><strong>Editing</strong> – the patch you are editing, with unsaved changes.</li>
+      </ul>
+      <p>Filter at the top (User / Preset / All) or search by name. Click a patch number to open it on the Effects page. With patches ticked:</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Button</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Select shown</strong> / <strong>Clear selection</strong></td><td>Ticks the patches shown (after filtering) / clears the ticks.</td></tr>
+          <tr><td><strong>Read from GT-3</strong></td><td>Reads them (presets too), with a progress box.</td></tr>
+          <tr><td><strong>Write to GT-3</strong></td><td>After a confirmation, writes the editor's copies to the GT-3 (user patches only).</td></tr>
+          <tr><td><strong>Copy to…</strong></td><td>Copies them, in order, into consecutive user slots – in the editor only; Write to GT-3 takes them over.</td></tr>
+          <tr><td><strong>Init</strong></td><td>Puts the init patch in their place (in the editor only).</td></tr>
+          <tr><td><strong>Save selected…</strong></td><td>Saves them into one <code>.syx</code> file.</td></tr>
+        </tbody>
+      </table></div>
+
+      <h2 id="system"><span class="num">8</span>System page</h2>
+      <p>The GT-3's own settings, grouped as in the Qt program: <strong>Output</strong> (what amp / headphones the output feeds), <strong>Global EQ / NS / Reverb</strong> (a correction for every patch), <strong>Tuner</strong>, <strong>Controls</strong> (display contrast, dial function, the SUB CTL footswitches), <strong>Patch change</strong>, <strong>MIDI</strong> (receive / transmit channel, Omni, program change, the pedals' CC output) and <strong>Manual mode</strong> (what the footswitches switch in manual mode).</p>
+      <ul>
+        <li>These are <strong>not patch settings</strong>: the GT-3 stores every change at once, so there is no Write here.</li>
+        <li>When connected, opening the page reads the GT-3's settings once. Offline it shows the defaults, and changes stay in the editor.</li>
+        <li><strong>Send all to GT-3</strong> sends every setting shown (to restore a saved file, for example). <strong>Load file…</strong> / <strong>Save file…</strong>: all system settings in one file.</li>
+      </ul>
+
+      <h2 id="sending"><span class="num">9</span>What reaches the GT-3, and when?</h2>
+      <ul>
+        <li><strong>Patch change:</strong> a Program Change at once; the GT-3 switches.</li>
+        <li><strong>Turning, switching, type changes, renaming, chain order:</strong> the change goes straight into the GT-3's <em>temporary</em> patch, so you hear it immediately. <strong>That is not saved yet</strong> – changing patch loses it unless you press Write first (or Auto write is on).</li>
+        <li><strong>Write / Write to GT-3:</strong> stores the patch in the GT-3's memory for good.</li>
+        <li><strong>System page:</strong> every change goes to the GT-3 at once, for good.</li>
+        <li><strong>Loading files, Copy to…, Init:</strong> in the editor only – Write takes them to the GT-3.</li>
+      </ul>
+
+      <h2 id="files"><span class="num">10</span>Saving and loading</h2>
+      <p>Files go wherever the browser downloads to (usually <em>Downloads</em>), and you load them from wherever you like. The format is the Qt FloorBoard's <code>.syx</code>, with the patch description and creator, so files move freely between the two programs.</p>
+      <ul>
+        <li><strong>Save file…</strong> (header): <em>This patch, as edited</em> – the sound being edited, unsaved changes included; or <em>All user patches</em> – the 140 user patches in one file (the init patch for any not read yet).</li>
+        <li><strong>Load file…</strong> (header, or drop the file on the window): a file with one patch goes into the editor (Write stores it); a file with many goes into the user slots (they become <em>Editor only</em>; Write to GT-3 on the Library page takes them over). A system settings file goes to the System page.</li>
+        <li><strong>Backup:</strong> Library → User → Select shown → Read from GT-3, then Save selected…; and Save file… on the System page.</li>
+      </ul>
+
+      <h2 id="problems"><span class="num">11</span>Troubleshooting</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Symptom</th><th>Fix</th></tr></thead>
+        <tbody>
+          <tr><td>"This browser has no Web MIDI"</td><td>The browser has no Web MIDI (e.g. Safari, iPhone). Use Chrome or Edge.</td></tr>
+          <tr><td>"MIDI access denied"</td><td>MIDI permission was blocked. Allow it in the site settings (the icon left of the address bar) and reload. If you opened the file directly and no prompt appears, start it from a local server (<a href="#start">section 2</a>).</td></tr>
+          <tr><td>"No MIDI ports found"</td><td>The interface isn't plugged in or wasn't recognised. Plug it in and open the connection dialog again.</td></tr>
+          <tr><td>"could not open any MIDI input"</td><td>Another program (the Qt FloorBoard, a DAW) holds the port. Close it and try again.</td></tr>
+          <tr><td>"GT-3 not found on any MIDI port"</td><td>Check that both MIDI cables are in, crossed over (<a href="#need">section 1</a>). If patch changes work with ports picked by hand but reading doesn't, the interface doesn't pass SysEx.</td></tr>
+          <tr><td>"expected 23 patch messages from the GT-3, got …"</td><td>Only part of the patch arrived. Try again; if it keeps happening, the interface probably drops data on long SysEx messages.</td></tr>
+          <tr><td>Patch changes don't work, reading does</td><td>The patch change channel differs from the GT-3's receive channel. Set it in the connection dialog to the <em>Rx channel</em> on the System page.</td></tr>
+          <tr><td>"Read GT-3" / "Read from GT-3" is grey</td><td>Connect first (<a href="#connect">section 3</a>).</td></tr>
+          <tr><td>A change was lost after changing patch</td><td>Press Write before changing patch, or turn Auto write on.</td></tr>
+        </tbody>
+      </table></div>
+    </article>
+  </div>
+
+  <footer>
+    <p>A fan project, not affiliated with BOSS / Roland Corporation. BOSS and GT-3 are trademarks of Roland Corporation. The parameter table and file format come from the open-source GT-3 FxFloorBoard.</p>
+  </footer>
+</div>
+</body>
+</html>

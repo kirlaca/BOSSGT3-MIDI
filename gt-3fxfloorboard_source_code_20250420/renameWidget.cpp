@@ -1,0 +1,81 @@
+/****************************************************************************
+**
+** Copyright (C) 2007~2025 Colin Willcocks.
+** Copyright (C) 2005~2007 Uco Mesdag. 
+** All rights reserved.
+** This file is part of "GT-3 Fx FloorBoard".
+**
+** This program is free software; you can redistribute it and/or modify
+** it under the terms of the GNU General Public License as published by
+** the Free Software Foundation; either version 2 of the License, or
+** (at your option) any later version.
+**
+** This program is distributed in the hope that it will be useful,
+** but WITHOUT ANY WARRANTY; without even the implied warranty of
+** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+** GNU General Public License for more details.
+**
+** You should have received a copy of the GNU General Public License along
+** with this program; if not, write to the Free Software Foundation, Inc.,
+** 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+**
+****************************************************************************/
+
+#include <QRegularExpression>
+#include "renameWidget.h"
+#include "renameDialog.h"
+#include "SysxIO.h"
+
+renameWidget::renameWidget(QWidget *parent)
+    : QWidget(parent)
+{
+	QObject::connect(this, SIGNAL(nameChanged(QString)), 
+		this->parentWidget(), SLOT(setPatchDisplay(QString)));
+};
+
+void renameWidget::mouseReleaseEvent(QMouseEvent *event)
+{
+	if ( event->button() == Qt::LeftButton )
+	{	
+		renameDialog *dialog = new renameDialog;
+		connect(dialog, SIGNAL(nameChanged(QString)), this, SLOT(updateName(QString)));
+		dialog->exec();
+	};
+};
+
+void renameWidget::updateName(QString name)
+{
+	SysxIO *sysxIO = SysxIO::Instance();
+
+	QList<QString> hexData;
+	for(int i=0; i<11; ++i) //name size = 11 chars
+	{
+		if(i<name.size())
+		{
+			if(name.at(i) == (QChar)(0x2192))
+			{
+				hexData.append("7E");
+			}
+			else if(name.at(i) == (QChar)(0x2190))
+			{
+				hexData.append("7F");
+			}
+			else
+			{
+				char asciiChar = name.at(i).toLatin1();
+				int asciiValue = (int)asciiChar;
+				QString nameHexValue = QString::number(asciiValue, 16).toUpper();
+				if(nameHexValue.length() < 2) nameHexValue.prepend("0");
+				hexData.append(nameHexValue);
+			};
+		}
+		else
+		{
+			hexData.append("20");
+		};
+	};
+	sysxIO->setFileSource("Structure", "0C", "00", "00", hexData); //patch name address
+	sysxIO->setCurrentPatchName(name);
+
+	emit nameChanged(name);
+};
