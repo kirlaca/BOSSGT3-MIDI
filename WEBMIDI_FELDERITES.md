@@ -1,6 +1,6 @@
 # GT-3 FxFloorBoard → Web MIDI port – felderítés
 
-Dátum: 2026-10-06 · Állapot: **1–2. és 4–8. lépés kész** (generátor, protokoll, Web MIDI réteg, effektek oldal –
+Dátum: 2026-10-06 (frissítve 2026-10-17) · Állapot: **1–2. és 4–8. lépés kész** (generátor, protokoll, Web MIDI réteg, effektek oldal –
 pedál nélkül tesztelve); a 3. lépés (próba a pedállal) a pedál megérkezésére vár. Részletek: [`webmidi/README.md`](webmidi/README.md).
 
 ## Döntés
@@ -107,6 +107,16 @@ Forrás: [`docs/GT-3_Service_Notes_1999.pdf`](docs/GT-3_Service_Notes_1999.pdf) 
 - [ ] Patch dump időzítése: kell-e szünet a 23 csomag között (régi pedál, lassú MIDI puffer).
 - [ ] Program Change / bank select működése a patchváltáshoz.
 - [ ] OD típus „External”: valóban az EXT OD/DS send/return hurkot kapcsolja-e be, és mit csinál ilyenkor a Drive/Bass/Treble.
+- [ ] Élő szerkesztés: a knob-tekerés (25 ms-onként összevont DT1-ek) hallatszik-e azonnal, nem fullad-e be a MIDI puffer.
+- [ ] Write (user patchbe írás) és a Library „Write to GT-3” több patchre (100 ms szünet patchenként elég-e).
+- [ ] Assign: a Toggle mód és az aktív tartomány valódi viselkedése; Min > Max fordított irányt ad-e.
+- [ ] System: a rendszerdump olvasási ideje (kb. 4,5 kB, ~1,5 s), és a „Send all” egyben elfogadja-e a teljes dumpot.
+- [ ] A próba után az útmutatók (`utmutato.html`, `guide.html`) ellenőrizetlennek jelölt részeit és az „Állapot”
+      figyelmeztetést frissíteni.
+
+**Folytatás a pedállal:** `webmidi/index.html` megnyitása → Offline → Auto-detect → patchváltás ◀ ▶ → egy ismeretlen
+patch kiválasztása (kiolvasás) → Library: User → Select shown → Read from GT-3 → Save selected… (biztonsági mentés),
+System → Save file… – és csak ezután bármilyen írás. Közben a fenti lista pontjai sorban.
 
 ## Tervezett lépések és becsült munka
 
