@@ -40,7 +40,7 @@ User guides: [English](webmidi/guide.html) · [Magyar](webmidi/utmutato.html). T
 | `index.html` | GitHub Pages entry point; redirects to `webmidi/`. |
 | `tools/gen_gt3_params.py` | Generates `webmidi/gt3-params.js` (every parameter, value table and assign target) and `webmidi/factory.js` from the FloorBoard's `midi.xml`, `default.syx` and `system.syx`. |
 | `tools/test_gt3.mjs`, `tools/test_midi.mjs` | Tests without a GT-3: the protocol against the FloorBoard's own formulas and 325 real patch files, and `midi.js` against a simulated GT-3. |
-| `gt-3fxfloorboard_source_code_20250420/` | The original Qt FloorBoard source, used by the generator and the tests. |
+| `gt-3fxfloorboard_source_code_20250420/` | The data files of the Qt FloorBoard that the generator and the tests read (`midi.xml`, `default.syx`, `system.syx`, the 325 init patches), with its license. |
 | `WEBMIDI_FELDERITES.md` | Survey, design notes and progress log (Hungarian). |
 
 ### Running locally
@@ -63,7 +63,7 @@ node tools/test_midi.mjs            # midi.js against a simulated GT-3
 
 ## Credits and license
 
-The parameter map, value tables, patch format and SysEx protocol come from the **GT-3 FxFloorBoard** by Colin Willcocks (gumtownbassman), based on the FxFloorBoard by Uco Mesdag – licensed under the GNU GPL v2 or later. Its source is included unchanged in `gt-3fxfloorboard_source_code_20250420/`. The look and structure of the editor follow the author's [ME-5 MIDI Editor](https://github.com/kirlaca/ME5-MIDI).
+The parameter map, value tables, patch format and SysEx protocol come from the **GT-3 FxFloorBoard** by Colin Willcocks (gumtownbassman), based on the FxFloorBoard by Uco Mesdag – licensed under the GNU GPL v2 or later. The data files the tools read are included unchanged in `gt-3fxfloorboard_source_code_20250420/`; the C++ source is not, as the editor does not use it. The look and structure of the editor follow the author's [ME-5 MIDI Editor](https://github.com/kirlaca/ME5-MIDI).
 
 Licensed under the GNU GPL v3. See [LICENSE](LICENSE). No warranty: use at your own risk.
 

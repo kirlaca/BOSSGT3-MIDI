@@ -2,3 +2,12 @@
 docs/*.pdf
 # Subversion leftovers in the Qt FloorBoard source
 .svn/
+# Qt FloorBoard source: only the data the tools read (and its license) are kept in git
+/gt-3fxfloorboard_source_code_20250420/*
+!/gt-3fxfloorboard_source_code_20250420/license.txt
+!/gt-3fxfloorboard_source_code_20250420/midi.xml
+!/gt-3fxfloorboard_source_code_20250420/default.syx
+!/gt-3fxfloorboard_source_code_20250420/system.syx
+!/gt-3fxfloorboard_source_code_20250420/packager/
+/gt-3fxfloorboard_source_code_20250420/packager/*
+!/gt-3fxfloorboard_source_code_20250420/packager/init patches/
