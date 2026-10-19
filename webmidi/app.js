@@ -622,7 +622,11 @@ function typeWindow(pedal) {
 
 // ---------------------------------------------------------------- pedals
 
-function renderPedal(pedal, position) {
+// Pressing on any of these works the control; anywhere else on a pedal picks it up.
+const PEDAL_CONTROLS = 'button, input, select, label, .knob';
+
+function renderPedal(pedal, order, i) {
+  const position = i + 1;
   const on = EFFECTS.isOn(pedal, state.patch);
   const { value: typeValue, def } = EFFECTS.typeOf(pedal, state.patch);
   const el = h('article', `pedal${on ? '' : ' off'}${pedal.wide ? ' wide' : ''}${state.detail === pedal.code ? ' selected' : ''}`);
@@ -670,6 +674,23 @@ function renderPedal(pedal, position) {
     el.append(foot);
   }
   if (on) el.append(h('span', 'on-bar'));
+
+  // Drag the pedal by its body to move it in the chain, like the chips above.
+  el.addEventListener('pointerdown', e => { el.draggable = !e.target.closest(PEDAL_CONTROLS); });
+  el.addEventListener('dragstart', e => {
+    e.dataTransfer.setData('text/plain', String(i));
+    e.dataTransfer.effectAllowed = 'move';
+    el.classList.add('dragging');
+  });
+  el.addEventListener('dragend', () => { el.classList.remove('dragging'); el.draggable = false; });
+  el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('drop'); });
+  el.addEventListener('dragleave', e => { if (!el.contains(e.relatedTarget)) el.classList.remove('drop'); });
+  el.addEventListener('drop', e => {
+    e.preventDefault();
+    el.classList.remove('drop');
+    const from = Number(e.dataTransfer.getData('text/plain'));
+    if (Number.isInteger(from) && from !== i) moveInChain(order, from, i);
+  });
   return el;
 }
 
@@ -732,7 +753,7 @@ function renderBoard() {
   const order = EFFECTS.order(state.patch);
   const board = $('#chain');
   board.replaceChildren();
-  order.forEach((code, i) => board.append(renderPedal(EFFECTS.BY_CODE.get(code), i + 1)));
+  order.forEach((code, i) => board.append(renderPedal(EFFECTS.BY_CODE.get(code), order, i)));
   board.append(renderMaster());
   renderChips(order);
   renderDetail();
@@ -849,7 +870,7 @@ function renderPatchMap() {
       cell.type = 'button';
       const name = patch ? GT3.patchName(patch) : '';
       cell.title = `${GT3.patchLabel(n)} ${name || '(not read yet)'}${state.unsynced.has(n) ? ' - only in the editor, not on the GT-3' : ''}`;
-      cell.append(h('span', 'pm-num', String(i + 1)), h('span', 'pm-name', name || '- - -'));
+      cell.append(h('span', 'pm-num', String(i + 1)), h('span', 'pm-name', name));
       cell.addEventListener('click', () => selectPatch(n));
       row.append(cell);
     }

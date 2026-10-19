@@ -248,7 +248,7 @@ button { font: inherit; color: inherit; }
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 .area-seg { flex: none; background: var(--panel); }
 .area-seg button { padding: 5px 12px; color: #c9cede; font-size: 12px; }
@@ -256,30 +256,33 @@ button { font: inherit; color: inherit; }
 .pm-pager { display: flex; align-items: center; gap: 8px; color: var(--muted); font: 600 12px/1 Consolas, monospace; }
 .pm-banks {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 8px 16px;
-  padding-bottom: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 4px 14px;
+  padding-bottom: 10px;
 }
-.pm-bank { display: grid; grid-template-columns: 34px repeat(4, minmax(0, 1fr)); gap: 4px; align-items: center; }
+.pm-bank { display: grid; grid-template-columns: 30px repeat(4, minmax(0, 1fr)); gap: 3px; align-items: center; }
 .pm-bank-no { color: var(--accent); font: 700 11px/1 Consolas, monospace; letter-spacing: .06em; }
 .pm-cell {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
-  padding: 6px 7px;
+  height: 20px;
+  padding: 0 5px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 4px;
   background: #121830;
   color: #c9cede;
-  font: 600 12px/1 Consolas, monospace;
+  font: 600 11px/1 Consolas, monospace;
   cursor: pointer;
   white-space: nowrap;
 }
 .pm-cell:hover { border-color: var(--line-hi); }
 .pm-cell.current { border-color: var(--led); box-shadow: inset 0 0 0 1px var(--led); color: #ffc2bc; }
-.pm-cell.unknown .pm-name { color: #545c75; }
-.pm-num { color: var(--accent); font-size: 11px; }
+/* not read from the GT-3 yet: an empty, dimmed slot */
+.pm-cell.unknown { background: transparent; }
+.pm-cell.unknown .pm-num { opacity: .5; }
+.pm-num { color: var(--accent); font-size: 10px; }
 .pm-name { overflow: hidden; text-overflow: ellipsis; white-space: pre; }
 
 /* ------------------------------------------------------------ FX chain bar */
@@ -340,8 +343,9 @@ button { font: inherit; color: inherit; }
   flex-wrap: wrap;
   justify-content: center;
   align-items: stretch;
-  gap: 30px 22px;
-  max-width: 1400px;
+  gap: 30px 20px;
+  /* wide enough for the 12 pedals + master in two rows, wherever the wide PreAmp falls */
+  max-width: 1540px;
   margin: 0 auto;
 }
 
@@ -362,7 +366,12 @@ button { font: inherit; color: inherit; }
     inset 0 -3px 0 rgba(0, 0, 0, .25),
     0 12px 24px rgba(0, 0, 0, .6);
   transition: filter .15s;
+  cursor: grab;
+  user-select: none;
 }
+.pedal:active { cursor: grabbing; }
+.pedal.dragging { opacity: .3; }
+.pedal.drop { outline: 2px dashed var(--accent); outline-offset: 4px; }
 .pedal.wide { width: 292px; }
 /* input/output jacks on the sides */
 .pedal::before, .pedal::after {
