@@ -142,7 +142,8 @@ async function libraryRead() {
     state.unsynced.delete(n);
   });
   if (done === numbers.length) toast(`Read ${done} patches`);
-  if (numbers.includes(state.current) && !isDirty()) showPatch(state.library[state.current]);
+  track('library-read');
+  if (numbers.includes(state.current)) showStored();
 }
 
 async function libraryWrite() {
@@ -160,6 +161,7 @@ async function libraryWrite() {
     await new Promise(r => setTimeout(r, WRITE_PAUSE_MS));
   });
   if (done === numbers.length) toast(`Wrote ${done} patches`);
+  track('library-write');
   // The GT-3 keeps playing its old temporary patch - load the current one again.
   if (numbers.includes(state.current)) Midi.selectPatch(state.conn, state.current, state.conn.channel).catch(() => {});
 }
@@ -196,9 +198,10 @@ async function libraryCopy() {
   const copies = numbers.map(n => GT3.clonePatch(state.library[n])); // all first: source and target may overlap
   targets.forEach((n, i) => { state.library[n] = copies[i]; state.unsynced.add(n); });
   state.lib.selected = new Set(targets);
-  if (targets.includes(state.current) && !isDirty()) showPatch(state.library[state.current]);
+  if (targets.includes(state.current)) showStored();
   renderPatchMap();
   renderView();
+  track('library-copy');
   toast(`Copied ${targets.length} patches to ${GT3.patchLabel(start)} - not on the GT-3 yet`);
 }
 
@@ -210,9 +213,10 @@ async function libraryInit() {
     confirmText: 'Init',
   })) return;
   for (const n of numbers) { state.library[n] = GT3.defaultPatch(); state.unsynced.add(n); }
-  if (numbers.includes(state.current) && !isDirty()) showPatch(state.library[state.current]);
+  if (numbers.includes(state.current)) showStored();
   renderPatchMap();
   renderView();
+  track('library-init');
 }
 
 function librarySave() {
@@ -222,6 +226,7 @@ function librarySave() {
     : `gt3-${GT3.patchLabel(numbers[0])}-${GT3.patchLabel(numbers[numbers.length - 1])}`;
   download(GT3.encodeFile(numbers.map(n => state.library[n]), { editor: true }), `${name}.syx`);
   toast(`Saved ${numbers.length} patches as ${name}.syx`);
+  track('library-save');
 }
 
 function wireLibrary() {

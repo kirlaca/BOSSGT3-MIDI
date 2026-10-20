@@ -28,7 +28,7 @@ No install needed: the editor runs entirely in Chrome or Edge using the Web MIDI
 1. Connect the interface, crossed over: interface OUT → GT-3 MIDI IN, interface IN ← GT-3 MIDI OUT.
 2. Open the editor and allow MIDI / SysEx access when the browser asks.
 3. Use auto-detect (it tries every port and all 32 device IDs), or pick the ports, device ID and patch change channel yourself.
-4. Press **Read GT-3** to load the user patches from the unit.
+4. After connecting, the editor goes to its current patch on the GT-3 and reads it; other patches are read when you select them. Until the current patch is read, edits are not sent and auto write is held (the status shows "not read"), so a Write can't replace your own sound with the editor's default patch. **Read GT-3** loads all 140 user patches at once.
 
 User guides: [English](webmidi/guide.html) · [Magyar](webmidi/utmutato.html). They can also be opened from the editor's header.
 
@@ -60,6 +60,26 @@ python -I tools/gen_gt3_params.py   # midi.xml -> webmidi/gt3-params.js, webmidi
 node tools/test_gt3.mjs             # protocol, default.syx / system.syx, 325 real patches
 node tools/test_midi.mjs            # midi.js against a simulated GT-3
 ```
+
+## Visitor statistics
+
+The GitHub Pages build counts page views with [GoatCounter](https://www.goatcounter.com/) (`webmidi/index.html`, `guide.html`, `utmutato.html`). It sets no cookies and sends only the page path, the referrer and the screen size, never any MIDI or patch data. Views from `localhost` are not counted, and nothing is sent while offline.
+
+The editor also counts a few actions as GoatCounter events (only the event name is sent):
+
+| Event | When |
+|---|---|
+| `no-webmidi` | The page was opened in a browser without Web MIDI (Safari, iOS) |
+| `midi-denied` | The browser refused MIDI / SysEx access |
+| `connect-auto`, `connect-manual`, `reconnect` | Connected by auto-detect, by picking ports, or restored from the last session |
+| `detect-not-found` | Auto-detect found no GT-3 |
+| `read-gt3`, `read-gt3-failed` | Read GT-3 (all 140 user patches) succeeded or failed |
+| `write-patch`, `write-patch-offline`, `auto-write-on` | A patch was written by hand (to the GT-3 / editor only), auto write was turned on |
+| `load-file`, `save-file` | File load and save on the patch page |
+| `library-read`, `library-write`, `library-copy`, `library-init`, `library-save` | Library page actions |
+| `system-read`, `system-send` | System settings read from or sent to the GT-3 |
+
+Statistics: https://gt3-midi.goatcounter.com/
 
 ## Credits and license
 

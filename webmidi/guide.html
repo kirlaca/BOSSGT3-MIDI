@@ -9,6 +9,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Michroma&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Share+Tech+Mono&display=swap">
   <link rel="stylesheet" href="pages.css">
+  <!-- Cookie-free visitor count (GoatCounter). Only the page path, referrer and screen size are sent. -->
+  <script data-goatcounter="https://gt3-midi.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -97,6 +99,7 @@
           </ul>
         </li>
         <li>Once connected the label turns green and shows the port and device ID. <strong>Go offline</strong> disconnects.</li>
+        <li>Right after connecting the GT-3 switches to the patch shown in the editor, and the editor reads it. Until it is read, the label shows <em>not read</em>, and edits are not sent to the GT-3 and not auto-written, so the editor's default patch can't replace your own sound.</li>
       </ol>
       <p>The editor remembers the ports and reconnects on reload if the interface is plugged in. Unplug it and it goes offline. While offline every edit stays in the editor.</p>
       <p class="note"><strong>Check:</strong> after connecting, change patch with ◀ ▶. If the GT-3's display follows, patch changes work. If the name of a patch not read before shows up in the editor, SysEx works too.</p>

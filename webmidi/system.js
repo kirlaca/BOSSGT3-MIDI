@@ -70,6 +70,7 @@ async function readSystem() {
     state.systemSource = 'Read from GT-3';
     state.systemRead = true;
     toast('System settings read from the GT-3');
+    track('system-read');
   } catch (e) {
     toast(`System read failed: ${e.message}`, 'error');
   } finally {
@@ -94,6 +95,7 @@ async function sendSystem() {
     await Midi.send(state.conn.output, GT3.encodeSystem(state.system, state.conn.dev));
     state.systemRead = true;
     toast('System settings sent to the GT-3');
+    track('system-send');
   } catch (e) {
     toast(`Send failed: ${e.message}`, 'error');
   }

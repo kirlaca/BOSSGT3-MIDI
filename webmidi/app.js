@@ -30,6 +30,10 @@ const state = {
   system: GT3.decodeSystem(GT3.systemSyx()),  // system settings, see GT3.decodeSystem
   systemSource: 'Defaults (system.syx) - not read from the GT-3',
   systemRead: false,  // read from the connected GT-3 since connecting
+  // Connected, but the current slot has not been read: the editor shows the default patch
+  // as a placeholder. Nothing is sent or auto-written then, so a Write can't replace the
+  // user's own sound with it. Cleared when the slot is read, or a patch is loaded on purpose.
+  needsRead: false,
 };
 
 const VIEWS = ['effects', 'assign', 'library', 'system'];
@@ -62,6 +66,14 @@ function arc(a0, a1, r = 42) {
   return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
 }
 
+// Counts an action as a GoatCounter event (script in index.html, see README). Only the
+// event name is sent. Silently does nothing when the script is blocked, offline or on localhost.
+function track(event) {
+  const send = () => { try { window.goatcounter?.count?.({ path: event, event: true }); } catch { /* not counted */ } };
+  // The async counter script is in by the load event; earlier events wait for it.
+  if (document.readyState === 'complete') send(); else window.addEventListener('load', send, { once: true });
+}
+
 const value = (block, offset) => GT3.getValue(state.patch, block, offset);
 const optionLabel = (block, offset, v) => EFFECTS.valueText(block, offset, v);
 
@@ -77,7 +89,7 @@ const pending = new Map();
 let pendingTimer = null;
 
 function queueSend(key, message) {
-  if (!state.conn) return;
+  if (!state.conn || state.needsRead) return;
   pending.set(key, message);
   if (pendingTimer === null) pendingTimer = setTimeout(flushSends, 25);
 }
@@ -94,7 +106,7 @@ function flushSends() {
 // The whole edited patch into the GT-3's temporary patch (after Revert, Init, file load).
 function sendTemp() {
   pending.clear();
-  if (!state.conn) return Promise.resolve();
+  if (!state.conn || state.needsRead) return Promise.resolve();
   return Midi.sendTemp(state.conn, state.patch).catch(e => toast(`Send failed: ${e.message}`, 'error'));
 }
 
@@ -137,6 +149,7 @@ async function selectPatch(n, { send = true } = {}) {
   const token = ++loadToken;
   state.current = n;
   followPage();
+  state.needsRead = Boolean(state.conn && !state.library[n]);
   showPatch(state.library[n] || GT3.defaultPatch());
   if (!send || !state.conn) return;
   try {
@@ -146,12 +159,22 @@ async function selectPatch(n, { send = true } = {}) {
       // Unknown slot: ask the GT-3 for it, unless the user has moved on meanwhile.
       const { patch } = await Midi.readPatch(state.conn, n);
       state.library[n] = patch;
-      if (token === loadToken && !isDirty()) showPatch(patch);
+      if (token === loadToken) showStored();
       renderPatchMap();
     }
   } catch (e) {
-    if (token === loadToken) toast(`${GT3.patchLabel(n)}: ${e.message}`, 'error');
+    if (token === loadToken) {
+      toast(`${GT3.patchLabel(n)}: ${e.message}${state.needsRead ? ' - edits are not sent to the GT-3 until it is read' : ''}`, 'error');
+    }
   }
+}
+
+// The current slot's stored patch is known now (read, loaded, copied): show it, unless
+// the user is editing - but the needsRead placeholder is never worth keeping.
+function showStored() {
+  if (!state.library[state.current] || (!state.needsRead && isDirty())) return;
+  state.needsRead = false;
+  showPatch(state.library[state.current]);
 }
 
 function showPatch(patch) {
@@ -175,7 +198,7 @@ let autoTimer = null;
 
 function queueAutoWrite() {
   cancelAutoWrite();
-  if (!state.autoWrite || !GT3.isUser(state.current) || !isDirty()) return;
+  if (!state.autoWrite || state.needsRead || !GT3.isUser(state.current) || !isDirty()) return;
   autoTimer = setTimeout(() => {
     autoTimer = null;
     renderAutoPending();
@@ -201,6 +224,7 @@ function setAutoWrite(on) {
   state.autoWrite = on;
   try { localStorage.setItem(AUTO_WRITE_KEY, on ? '1' : '0'); } catch { /* storage blocked */ }
   $('#auto-write').checked = on;
+  if (on) track('auto-write-on');
   queueAutoWrite();
 }
 
@@ -216,11 +240,14 @@ function renderAutoPending() {
 async function writeTo(n, { auto = false } = {}) {
   const patch = GT3.clonePatch(state.patch); // the user may go on editing while it is sent
   const label = GT3.patchLabel(n);
+  // An auto write queued before the read would store the placeholder.
+  if (auto && state.needsRead) return;
   cancelAutoWrite();
   try {
     await flushSends();
     if (state.conn) await Midi.writePatch(state.conn, patch, n);
     state.library[n] = patch;
+    state.needsRead = false; // the editor's sound is now what that slot holds
     if (state.conn) state.unsynced.delete(n); else state.unsynced.add(n);
     if (n !== state.current) {
       // Now editing the copy just stored; the GT-3 goes to it too.
@@ -235,6 +262,7 @@ async function writeTo(n, { auto = false } = {}) {
     if (state.view === 'library') renderView();
     const where = state.conn ? label : `${label} (editor only - offline)`;
     toast(auto ? `Auto-written to ${where}` : `Written to ${where}`);
+    if (!auto) track(state.conn ? 'write-patch' : 'write-patch-offline');
   } catch (e) {
     toast(`${auto ? 'Auto write' : 'Write'} failed: ${e.message}`, 'error');
   }
@@ -250,7 +278,11 @@ function openWriteDialog() {
     o.selected = n === target;
     return o;
   }));
-  $('#write-msg').textContent = state.conn ? '' : 'Offline: the patch is only stored in the editor (save it to a file to keep it).';
+  $('#write-msg').textContent = !state.conn
+    ? 'Offline: the patch is only stored in the editor (save it to a file to keep it).'
+    : state.needsRead
+      ? 'This patch has not been read from the GT-3: it starts from the default patch, not from what the GT-3 holds.'
+      : '';
   $('#write-dialog').showModal();
   select.focus();
 }
@@ -265,6 +297,7 @@ function revert() {
 }
 
 function loadInit() {
+  state.needsRead = false;
   state.patch = GT3.defaultPatch();
   sendTemp();
   changed();
@@ -286,12 +319,14 @@ async function readUserPatches() {
     box.update(1, 'Done');
     state.source = 'Read from GT-3';
     toast(`Read ${GT3.USER_PATCHES} user patches`);
+    track('read-gt3');
   } catch (e) {
     Ask.alert({ icon: 'error', title: 'Read failed', text: [`At ${GT3.patchLabel(n)}: ${e.message}`, `${n} patches were read before it.`] });
+    track('read-gt3-failed');
   } finally {
     box.close();
-    if (!isDirty() && state.library[state.current]) showPatch(state.library[state.current]);
-    else renderAll();
+    showStored();
+    renderAll();
   }
 }
 
@@ -306,10 +341,12 @@ function loadFile(file) {
       const results = GT3.decodeFile(bytes);
       if (results.length === 1) {
         // One patch: into the editor, like picking a sound; Write stores it.
+        state.needsRead = false;
         state.patch = results[0].patch;
         sendTemp();
         changed();
         toast(`Loaded ${file.name} into the editor - Write stores it`);
+        track('load-file');
         return;
       }
       // A bulk dump: into the user patches, at their own numbers when the file has them.
@@ -324,8 +361,10 @@ function loadFile(file) {
         count++;
       }
       state.source = `File · ${file.name}`;
+      if (state.library[state.current]) state.needsRead = false;
       showPatch(state.library[state.current] || GT3.defaultPatch());
       toast(`Loaded ${count} patches from ${file.name} (editor only - Write stores them one by one)`);
+      track('load-file');
     } catch (e) {
       toast(`Load failed: ${e.message}`, 'error');
     }
@@ -381,6 +420,7 @@ function saveFile() {
     download(GT3.encodeFile(patches, { editor: true }), filename);
     $('#file-dialog').close();
     toast(`Saved ${filename}`);
+    track('save-file');
   } catch (e) {
     toast(`Save failed: ${e.message}`, 'error');
   }
@@ -881,7 +921,7 @@ function renderPatchMap() {
 function renderStatus() {
   const btn = $('#conn-status');
   btn.classList.toggle('online', Boolean(state.conn));
-  $('#conn-text').textContent = state.conn ? `${state.conn.output} · Dev ${state.conn.dev + 1}` : 'Offline';
+  renderConnText();
   $('#lib-read').disabled = !state.conn;
   if (state.view === 'library' || state.view === 'system') renderView(); // their buttons depend on the connection
   if (state.view === 'system') readSystemOnce();
@@ -906,7 +946,14 @@ function setView(view) {
   if (state.view === 'system') readSystemOnce();
 }
 
+function renderConnText() {
+  $('#conn-text').textContent = state.conn
+    ? `${state.conn.output} · Dev ${state.conn.dev + 1}${state.needsRead ? ' · not read' : ''}`
+    : 'Offline';
+}
+
 function renderAll() {
+  renderConnText();
   renderDisplay();
   renderPatchMap();
   renderView();
@@ -943,9 +990,12 @@ function connect(ports, { quiet = false } = {}) {
   try {
     if (ports) localStorage.setItem(CONN_KEY, JSON.stringify(ports)); else localStorage.removeItem(CONN_KEY);
   } catch { /* storage blocked */ }
+  state.needsRead = false;
   renderStatus();
   $('#conn-dialog').close();
-  if (!quiet) toast(ports ? 'Connected. "Read GT-3" pulls the user patches.' : 'Offline - edits stay in the editor.');
+  // Start from what the GT-3 really holds: go to the current patch and read it if unknown.
+  if (ports) selectPatch(state.current);
+  else if (!quiet) toast('Offline - edits stay in the editor.');
 }
 
 // Reconnect to last session's ports if they are plugged in. Only asks the browser
@@ -961,6 +1011,8 @@ async function restoreConnection() {
       state.conn = saved;
       renderStatus();
       toast(`Reconnected to ${saved.output} · Dev ${saved.dev + 1}`);
+      track('reconnect');
+      selectPatch(state.current);
     }
   } catch { /* stay offline; the connection dialog shows the reason */ }
 }
@@ -972,6 +1024,7 @@ function watchPorts() {
   Midi.onPortsChanged(() => {
     if (state.conn && !Midi.outputs().some(p => p.name === state.conn.output)) {
       state.conn = null; // keep the saved ports, so plugging back in + reload reconnects
+      state.needsRead = false;
       renderStatus();
       toast('MIDI interface unplugged - offline', 'error');
     }
@@ -1017,6 +1070,7 @@ async function openConnDialog() {
     fillPortLists();
   } catch (e) {
     msg.textContent = e.message;
+    if (navigator.requestMIDIAccess) track('midi-denied'); // no Web MIDI at all is counted on load
   }
 }
 
@@ -1028,8 +1082,13 @@ async function autoDetect() {
     await Midi.init();
     const found = await Midi.detectGt3();
     // Not yet checked on the unit: device ID 1-16 is taken to mean the same MIDI channel.
-    if (found) connect({ ...found, channel: found.dev % MIDI_CHANNELS });
-    else $('#conn-msg').textContent = 'GT-3 not found on any MIDI port. Are MIDI IN and OUT both connected?';
+    if (found) {
+      connect({ ...found, channel: found.dev % MIDI_CHANNELS });
+      track('connect-auto');
+    } else {
+      $('#conn-msg').textContent = 'GT-3 not found on any MIDI port. Are MIDI IN and OUT both connected?';
+      track('detect-not-found');
+    }
   } catch (e) {
     $('#conn-msg').textContent = e.message;
   } finally {
@@ -1081,7 +1140,9 @@ function wire() {
   $('#conn-use').addEventListener('click', () => {
     const output = $('#port-out').value;
     const input = $('#port-in').value;
-    if (output) connect({ output, input, dev: Number($('#port-dev').value), channel: Number($('#port-channel').value) });
+    if (!output) return;
+    connect({ output, input, dev: Number($('#port-dev').value), channel: Number($('#port-channel').value) });
+    track('connect-manual');
   });
   $('#conn-disconnect').addEventListener('click', () => connect(null));
 
@@ -1117,6 +1178,8 @@ function init() {
   showPatch(GT3.defaultPatch());
   renderStatus();
   restoreConnection();
+  // Visitors on Safari / iOS can never connect - worth knowing how many arrive.
+  if (!navigator.requestMIDIAccess) track('no-webmidi');
 }
 
 init();
