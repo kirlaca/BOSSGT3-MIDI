@@ -34,6 +34,11 @@ const state = {
   // as a placeholder. Nothing is sent or auto-written then, so a Write can't replace the
   // user's own sound with it. Cleared when the slot is read, or a patch is loaded on purpose.
   needsRead: false,
+  // Live knobs: parameters the user picked to hear at once. In play mode the GT-3 ignores
+  // SysEx, so each one gets a free Assign with a CC source in the temporary patch (sent in
+  // BULK LOAD mode, see armLive); `armed` maps "block/offset" -> {assign, cc, block, offset}
+  // for the ones the GT-3 has now. Patch changes drop it: the GT-3 loads the stored patch.
+  live: { picks: [], armed: null, stale: false },
 };
 
 const VIEWS = ['effects', 'assign', 'library', 'system'];
@@ -106,6 +111,7 @@ function flushSends() {
 // The whole edited patch into the GT-3's temporary patch (after Revert, Init, file load).
 function sendTemp() {
   pending.clear();
+  if (state.live.armed) markLiveStale();
   if (!state.conn || state.needsRead) return Promise.resolve();
   return Midi.sendTemp(state.conn, state.patch).catch(e => toast(`Send failed: ${e.message}`, 'error'));
 }
@@ -115,9 +121,123 @@ const dev = () => state.conn?.dev ?? 0;
 // ---------------------------------------------------------------- edits
 
 function edit(block, offset, v, { structural = false } = {}) {
+  const key = liveKey(block, offset);
+  const slot = state.live.armed?.get(key);
+  if (slot) {
+    // A live knob: the value goes as its Assign's CC, and is kept as the GT-3 will play it.
+    const p = GT3.param(block, offset);
+    const cc = GT3.ccForValue(p, v);
+    v = GT3.valueForCc(p, cc);
+    if (v === value(block, offset)) return;
+    GT3.setValue(state.patch, block, offset, v, dev());
+    queueSend(key, GT3.controlChange(state.conn.channel, slot.cc, cc));
+    changed(structural);
+    return;
+  }
   if (v === value(block, offset)) return;
-  queueSend(`${block}/${offset}`, GT3.setValue(state.patch, block, offset, v, dev()));
+  queueSend(key, GT3.setValue(state.patch, block, offset, v, dev()));
+  if (state.live.armed) markLiveStale();
   changed(structural);
+}
+
+// ---------------------------------------------------------------- live knobs
+
+const liveKey = (block, offset) => `${block}/${offset}`;
+const isLivePick = (block, offset) => state.live.picks.some(p => p.block === block && p.offset === offset);
+
+function toggleLivePick(block, offset) {
+  const picks = state.live.picks;
+  const i = picks.findIndex(p => p.block === block && p.offset === offset);
+  if (i >= 0) {
+    picks.splice(i, 1);
+  } else {
+    const free = GT3.freeAssigns(state.patch).length;
+    if (picks.length >= free) {
+      toast(`This patch has ${free} free Assign${free === 1 ? '' : 's'} - that many live knobs at most`, 'error');
+      return;
+    }
+    picks.push({ block, offset });
+  }
+  // A new pick waits for the next Live send; the knobs already live keep working.
+  if (state.live.armed) state.live.stale = true;
+  renderLive();
+  renderView();
+}
+
+// The GT-3's live setup no longer matches the editor (other picks, or edits it can't hear yet).
+function markLiveStale() {
+  if (!state.live.stale) toast('Only live knobs sound at once - send Live again (BULK LOAD) for the other changes');
+  state.live.stale = true;
+  renderLive();
+}
+
+function dropLive() {
+  state.live.armed = null;
+  state.live.stale = false;
+  renderLive();
+}
+
+function renderLive() {
+  const btn = $('#live');
+  const { picks, armed, stale } = state.live;
+  btn.textContent = armed ? `Live ● ${armed.size}` : `Live ${picks.length || ''}`.trim();
+  btn.classList.toggle('primary', Boolean(picks.length && (!armed || stale)));
+  btn.classList.toggle('armed', Boolean(armed) && !stale);
+  btn.title = armed
+    ? `${armed.size} live knob${armed.size === 1 ? '' : 's'} on the GT-3${stale ? ' - changed since: send again' : ''}`
+    : 'Hear knobs at once: pick them with the dot under the knob, then send them to the GT-3';
+}
+
+// Put the edited sound, with the picked knobs on free Assigns, into the GT-3's temporary
+// patch. The GT-3 takes SysEx only in BULK LOAD mode and plays it after EXIT; then the
+// editor sets every live knob's CC, as Assign Hold keeps the last CC value across patches.
+async function armLive() {
+  if (!state.conn) { toast('Connect to the GT-3 first'); return; }
+  if (!state.live.picks.length) {
+    Ask.alert({
+      icon: 'question', title: 'Live knobs',
+      text: ['Click the small dot under a knob to make it live (up to the number of free Assigns in the patch, at most 8).',
+        'Then press Live: the GT-3 follows those knobs at once while you turn them.'],
+    });
+    return;
+  }
+  const ready = await Ask.confirm({
+    icon: 'question', title: 'Put the GT-3 in BULK LOAD',
+    text: ['On the GT-3: UTILITY 4 times, then PARAMETER ▶ 10 times - the display shows "waiting".',
+      `Then press Send: this sound goes to the GT-3 with ${state.live.picks.length} live knob${state.live.picks.length === 1 ? '' : 's'}. Nothing is stored.`],
+    confirmText: 'Send',
+  });
+  if (!ready) return;
+  const n = state.current;
+  try {
+    await flushSends();
+    if (state.needsRead) {
+      // In BULK LOAD the GT-3 answers: read the slot first, so the placeholder isn't sent.
+      state.library[n] = (await Midi.readPatch(state.conn, n)).patch;
+      showStored();
+      renderPatchMap();
+    }
+    const free = GT3.freeAssigns(state.patch);
+    const picks = state.live.picks.filter(p => GT3.targetCode(p.block, p.offset) !== null).slice(0, free.length);
+    const slots = picks.map((p, i) => ({ ...p, assign: free[i], cc: GT3.liveCc(free[i]) }));
+    await Midi.sendTemp(state.conn, GT3.withLiveAssigns(state.patch, slots));
+    const done = await Ask.confirm({
+      icon: 'warning', title: 'Press EXIT on the GT-3',
+      text: ['The GT-3 plays the sent sound after EXIT.', 'When it is back on the patch display, press Done.'],
+      confirmText: 'Done', cancelText: null,
+    });
+    if (!done || state.current !== n) return;
+    state.live.armed = new Map(slots.map(s => [liveKey(s.block, s.offset), s]));
+    state.live.stale = false;
+    await Midi.send(state.conn.output, slots.map(s =>
+      GT3.controlChange(state.conn.channel, s.cc, GT3.ccForValue(GT3.param(s.block, s.offset), value(s.block, s.offset)))));
+    renderLive();
+    renderView();
+    toast(`${slots.length} live knob${slots.length === 1 ? '' : 's'} - the GT-3 follows them at once`);
+    track('live-arm');
+  } catch (e) {
+    Ask.alert({ icon: 'error', title: 'Live knobs not sent', text: [e.message, 'Is the GT-3 in BULK LOAD ("waiting")?'] });
+  }
 }
 
 // Something in state.patch changed: repaint, and restart the auto write countdown.
@@ -148,6 +268,7 @@ async function selectPatch(n, { send = true } = {}) {
   await flushSends();
   const token = ++loadToken;
   state.current = n;
+  dropLive(); // the GT-3 loads the stored patch, without the live Assigns
   followPage();
   state.needsRead = Boolean(state.conn && !state.library[n]);
   showPatch(state.library[n] || GT3.defaultPatch());
@@ -463,6 +584,7 @@ function knob(block, offset, label, { size = 'normal', range: limits = null, tex
     <circle class="knob-cap" cx="50" cy="50" r="31"/><circle class="knob-cap-top" cx="50" cy="50" r="25"/>
     <line class="knob-pointer" x1="50" y1="42" x2="50" y2="23"/></svg>`;
   wrap.append(h('span', 'knob-label', label), dial, out);
+  if (typeof block !== 'object' && GT3.targetCode(block, offset) !== null) wrap.append(liveDot(block, offset, label));
   const fill = dial.querySelector('.knob-fill');
   const pointer = dial.querySelector('.knob-pointer');
   const range = Math.max(1, p.max - p.min);
@@ -522,6 +644,21 @@ function knob(block, offset, label, { size = 'normal', range: limits = null, tex
   painters.push(paint);
   paint();
   return wrap;
+}
+
+// The dot under a knob that makes it live (see armLive).
+function liveDot(block, offset, label) {
+  const picked = isLivePick(block, offset);
+  const armed = state.live.armed?.has(liveKey(block, offset));
+  const dot = h('button', `knob-live${picked ? ' picked' : ''}${armed ? ' armed' : ''}`);
+  dot.type = 'button';
+  dot.setAttribute('aria-pressed', String(picked));
+  dot.setAttribute('aria-label', `${label}: live knob`);
+  dot.title = armed ? 'Live: the GT-3 follows this knob at once (click to drop it)'
+    : picked ? 'Picked as a live knob - press Live to send it to the GT-3'
+      : 'Make this a live knob: heard at once while you turn it';
+  dot.addEventListener('click', () => toggleLivePick(block, offset));
+  return dot;
 }
 
 function fader(block, offset, label) {
@@ -987,6 +1124,7 @@ function endRename(commit) {
 function connect(ports, { quiet = false } = {}) {
   state.conn = ports;
   state.systemRead = false;
+  dropLive();
   try {
     if (ports) localStorage.setItem(CONN_KEY, JSON.stringify(ports)); else localStorage.removeItem(CONN_KEY);
   } catch { /* storage blocked */ }
@@ -1086,7 +1224,8 @@ async function autoDetect() {
       connect({ ...found, channel: found.dev % MIDI_CHANNELS });
       track('connect-auto');
     } else {
-      $('#conn-msg').textContent = 'GT-3 not found on any MIDI port. Are MIDI IN and OUT both connected?';
+      $('#conn-msg').textContent = 'GT-3 not found. It answers only in BULK LOAD mode (UTILITY 4×, PARAMETER ▶ 10×, "waiting") - '
+        + 'are MIDI IN and OUT both connected?';
       track('detect-not-found');
     }
   } catch (e) {
@@ -1107,6 +1246,7 @@ function wire() {
     writeTo(Number($('#write-target').value));
   });
   $('#revert').addEventListener('click', revert);
+  $('#live').addEventListener('click', armLive);
   $('#auto-write').addEventListener('change', e => setAutoWrite(e.target.checked));
   $('#lib-init').addEventListener('click', loadInit);
   $('#lib-load').addEventListener('click', () => $('#file-input').click());
@@ -1176,6 +1316,7 @@ function init() {
   followPage();
   state.view = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'effects';
   showPatch(GT3.defaultPatch());
+  renderLive();
   renderStatus();
   restoreConnection();
   // Visitors on Safari / iOS can never connect - worth knowing how many arrive.

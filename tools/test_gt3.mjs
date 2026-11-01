@@ -198,5 +198,32 @@ check(tOk === GT3.TARGETS.length, `${tOk}/${GT3.TARGETS.length} assign targets p
 const t0 = GT3.target(0x35);
 console.log(`      target 0x35 = "${t0.name}" -> block ${GT3.hex(t0.block)} offset ${GT3.hex(t0.offset)} (${t0.param?.name})`);
 
+// ---------------------------------------------------------------- live knobs (Assign + CC)
+
+check(GT3.ccSource(1) === 7 && GT3.ccSource(20) === 0x1A && GT3.ccSource(31) === 37 && GT3.ccSource(64) === 38 && GT3.ccSource(95) === 69,
+  'CC source codes match the Assign source list (CC#20 = 1A, as written on the GT-3)');
+check(P.tables[P.blocks[0x0F].params.find(q => q.name === 'Source').t][GT3.ccSource(20)][1].startsWith('CC#20'), 'source list entry for CC#20');
+check(GT3.targetCode(0x0A, 0x00) === 0xC6 && GT3.targetCode(0x03, 0x01) === 0x31, 'target codes: Master Level C6 (01 46), OD Type 31');
+const odType = GT3.param(0x03, 0x01);
+check(GT3.ccForValue(odType, 9) === 104 && GT3.valueForCc(odType, 104) === 9 && GT3.valueForCc(odType, 0) === 0,
+  'OD Type: Metal 2 = CC 104, Natural OD = CC 0 (measured on the GT-3)');
+let ccOk = true;
+for (const t of GT3.TARGETS) {
+  const q = GT3.target(t.code).param;
+  if (!q || q.max - q.min > 127) continue;
+  for (let v = q.min; v <= q.max; v++) if (GT3.valueForCc(q, GT3.ccForValue(q, v)) !== v) { ccOk = false; break; }
+}
+check(ccOk, 'every value of every target with a span up to 127 has a CC that gives it back');
+// The block written on the GT-3 on 2026-11-01 (U35-4 Assign 2: Master Level, 0-100, CC#20); here on
+// Assign 3 (the first free one of the init patch), so CC#22 = source 1C.
+const liveBase = GT3.defaultPatch();
+check(GT3.freeAssigns(liveBase)[0] === 2, 'init patch: Assign 1 and 2 are in use, 3 is the first free one');
+const live = GT3.withLiveAssigns(liveBase, [{ assign: 2, block: 0x0A, offset: 0x00 }]);
+check(hexStr(live.blocks[0x11].slice(0, 11)) === '010146000000641C00007F', 'live Assign block = the one that worked on the GT-3 (CC#22)');
+check(same(live.blocks[0x11].slice(11), liveBase.blocks[0x11].slice(11)) && GT3.samePatch(liveBase, GT3.defaultPatch()),
+  'live Assigns: rest of the block kept, the original patch untouched');
+check(GT3.freeAssigns(live).length === GT3.freeAssigns(liveBase).length - 1, 'a borrowed Assign is no longer free');
+check(hexStr(GT3.controlChange(0, 20, 104)) === 'B01468', 'control change message');
+
 console.log(`\n${checks - failures}/${checks} checks passed${failures ? ` - ${failures} FAILED` : ''}`);
 process.exit(failures ? 1 : 0);
