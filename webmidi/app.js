@@ -164,7 +164,10 @@ async function selectPatch(n, { send = true } = {}) {
     }
   } catch (e) {
     if (token === loadToken) {
-      toast(`${GT3.patchLabel(n)}: ${e.message}${state.needsRead ? ' - edits are not sent to the GT-3 until it is read' : ''}`, 'error');
+      toast(state.needsRead
+        ? `${GT3.patchLabel(n)} is not read yet - the GT-3 answers reads only in BULK LOAD mode. Edits are held until it is read `
+          + '(select it again in BULK LOAD, Read GT-3, or load your backup file).'
+        : `${GT3.patchLabel(n)}: ${e.message}`, 'error');
     }
   }
 }
@@ -306,8 +309,19 @@ function loadInit() {
 
 // ---------------------------------------------------------------- reading the GT-3
 
-async function readUserPatches() {
+// The USB-MIDI interface tested with the GT-3 (DOREMiDi) stalled after about a minute of
+// back-to-back patch dumps; with a rest after each patch all 140 came through.
+const READ_REST_MS = 500;
+
+async function readUserPatches({ ask = true } = {}) {
   if (!state.conn) return;
+  const ready = !ask || await Ask.confirm({
+    icon: 'question', title: 'Read the 140 user patches',
+    text: ['The GT-3 answers only in BULK LOAD mode: UTILITY 4 times, then PARAMETER ▶ 10 times - the display shows "waiting".',
+      'Reading takes about 3 minutes. Press EXIT on the GT-3 afterwards.'],
+    confirmText: 'Read',
+  });
+  if (!ready) return;
   const box = Ask.progress({ title: 'Reading the GT-3', text: 'The 140 user patches, one after the other.' });
   let n = 0;
   try {
@@ -315,13 +329,18 @@ async function readUserPatches() {
       box.update(n / GT3.USER_PATCHES, `${GT3.patchLabel(n)}  ${n + 1} / ${GT3.USER_PATCHES}`);
       state.library[n] = (await Midi.readPatch(state.conn, n)).patch;
       state.unsynced.delete(n);
+      await new Promise(r => setTimeout(r, READ_REST_MS));
     }
     box.update(1, 'Done');
     state.source = 'Read from GT-3';
     toast(`Read ${GT3.USER_PATCHES} user patches`);
     track('read-gt3');
   } catch (e) {
-    Ask.alert({ icon: 'error', title: 'Read failed', text: [`At ${GT3.patchLabel(n)}: ${e.message}`, `${n} patches were read before it.`] });
+    Ask.alert({
+      icon: 'error', title: 'Read failed',
+      text: [`At ${GT3.patchLabel(n)}: ${e.message}`, `${n} patches were read before it.`,
+        'Is the GT-3 still in BULK LOAD ("waiting")? If it is, unplug and replug the MIDI interface and read again.'],
+    });
     track('read-gt3-failed');
   } finally {
     box.close();
@@ -994,8 +1013,9 @@ function connect(ports, { quiet = false } = {}) {
   renderStatus();
   $('#conn-dialog').close();
   // Start from what the GT-3 really holds: go to the current patch and read it if unknown.
-  if (ports) selectPatch(state.current);
-  else if (!quiet) toast('Offline - edits stay in the editor.');
+  if (ports) return selectPatch(state.current);
+  if (!quiet) toast('Offline - edits stay in the editor.');
+  return Promise.resolve();
 }
 
 // Reconnect to last session's ports if they are plugged in. Only asks the browser
@@ -1083,10 +1103,24 @@ async function autoDetect() {
     const found = await Midi.detectGt3();
     // Not yet checked on the unit: device ID 1-16 is taken to mean the same MIDI channel.
     if (found) {
-      connect({ ...found, channel: found.dev % MIDI_CHANNELS });
       track('connect-auto');
+      // It answered, so it is in BULK LOAD now: the moment to read what it holds.
+      await connect({ ...found, channel: found.dev % MIDI_CHANNELS });
+      const unread = state.library.slice(0, GT3.USER_PATCHES).filter(p => !p).length;
+      if (unread && await Ask.confirm({
+        icon: 'question', title: 'Connected - read the user patches too?',
+        text: ['While the GT-3 is in BULK LOAD the editor can read all 140 user patches (about 3 minutes), '
+          + 'so every patch you pick later is known at once.', 'Or skip it: a patch not read yet needs BULK LOAD again when you select it.'],
+        confirmText: 'Read all', cancelText: 'Not now',
+      })) await readUserPatches({ ask: false });
+      await Ask.alert({
+        icon: 'success', title: 'Press EXIT on the GT-3',
+        text: ['Back on the patch display, every change in the editor is heard at once.',
+          'BULK LOAD is only needed for reading patches and for Write.'],
+      });
     } else {
-      $('#conn-msg').textContent = 'GT-3 not found on any MIDI port. Are MIDI IN and OUT both connected?';
+      $('#conn-msg').textContent = 'GT-3 not found. It answers only in BULK LOAD mode (UTILITY 4×, PARAMETER ▶ 10×, "waiting") - '
+        + 'are MIDI IN and OUT both connected?';
       track('detect-not-found');
     }
   } catch (e) {
@@ -1122,7 +1156,7 @@ function wire() {
   $('#file-name').addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); saveFile(); }
   });
-  $('#lib-read').addEventListener('click', readUserPatches);
+  $('#lib-read').addEventListener('click', () => readUserPatches());
   $('#pm-prev').addEventListener('click', () => { state.page--; renderPatchMap(); });
   $('#pm-next').addEventListener('click', () => { state.page++; renderPatchMap(); });
 

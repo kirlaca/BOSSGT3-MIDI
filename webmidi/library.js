@@ -137,9 +137,15 @@ async function forEachPatch(title, numbers, step, text = "Don't unplug the MIDI 
 
 async function libraryRead() {
   const numbers = selection();
+  if (!await Ask.confirm({
+    icon: 'question', title: `Read ${numbers.length} patches from the GT-3?`,
+    text: 'The GT-3 answers only in BULK LOAD mode: UTILITY 4 times, then PARAMETER ▶ 10 times - the display shows "waiting". Press EXIT afterwards.',
+    confirmText: 'Read',
+  })) return;
   const done = await forEachPatch('Reading from the GT-3', numbers, async n => {
     state.library[n] = (await Midi.readPatch(state.conn, n)).patch;
     state.unsynced.delete(n);
+    await new Promise(r => setTimeout(r, READ_REST_MS));  // see READ_REST_MS in app.js
   });
   if (done === numbers.length) toast(`Read ${done} patches`);
   track('library-read');

@@ -72,7 +72,7 @@ async function readSystem() {
     toast('System settings read from the GT-3');
     track('system-read');
   } catch (e) {
-    toast(`System read failed: ${e.message}`, 'error');
+    toast(`System read failed: ${e.message} - the GT-3 answers reads only in BULK LOAD mode`, 'error');
   } finally {
     btn.textContent = 'Read from GT-3';
     if (state.view === 'system') renderView();
