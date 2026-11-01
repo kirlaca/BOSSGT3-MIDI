@@ -161,9 +161,9 @@
   <dialog id="conn-dialog">
     <form method="dialog">
       <h2>MIDI connection</h2>
-      <p class="hint">The browser talks to the MIDI interface directly (Web MIDI) - allow MIDI / SysEx access when it
-        asks. Auto-detect asks every port on all 32 device IDs and takes the one the GT-3 answers on.
-        Picking ports by hand works for patch changes even when SysEx replies don't come back.</p>
+      <p class="hint">1. Pick the patch you want to edit on the GT-3. 2. Put the GT-3 in BULK LOAD (UTILITY 4 times,
+        PARAMETER ▶ 10 times - "waiting"): only then does it answer. 3. Auto-detect - the editor stays on that patch and reads it.
+        Then press EXIT on the GT-3: every edit is heard at once. Allow MIDI / SysEx access when the browser asks.</p>
       <label class="field">Output (to GT-3)<select id="port-out"></select></label>
       <label class="field">Input (from GT-3)<select id="port-in"></select></label>
       <div class="field-row">

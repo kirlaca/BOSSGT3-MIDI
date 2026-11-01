@@ -72,6 +72,40 @@ const Ask = (() => {
 
   const alert = opts => confirm({ cancelText: null, ...opts });
 
+  // A list to pick from: options = [[value, text], ...]; resolves the picked value, or null on cancel.
+  function choose({ options, value, label = '', confirmText = 'OK', cancelText = 'Cancel', ...opts }) {
+    const dlg = build({ icon: 'question', ...opts });
+    const select = el('select', 'ask-select');
+    if (label) select.setAttribute('aria-label', label);
+    for (const [v, text] of options) {
+      const o = el('option', '', text);
+      o.value = String(v);
+      o.selected = v === value;
+      select.append(o);
+    }
+    const actions = el('div', 'ask-actions');
+    const cancel = el('button', 'btn', cancelText);
+    cancel.type = 'button';
+    const ok = el('button', 'btn primary', confirmText);
+    ok.type = 'button';
+    actions.append(cancel, ok);
+    dlg.append(select, actions);
+
+    let resolve;
+    const finish = answer => {
+      if (!resolve) return;
+      close(dlg);
+      resolve(answer);
+      resolve = null;
+    };
+    ok.addEventListener('click', () => finish(options.find(([v]) => String(v) === select.value)?.[0] ?? null));
+    cancel.addEventListener('click', () => finish(null));
+    dlg.addEventListener('cancel', e => { e.preventDefault(); finish(null); });
+    dlg.showModal();
+    select.focus();
+    return new Promise(r => { resolve = r; });
+  }
+
   // A box with a progress bar that the user can't dismiss; returns { update, close }.
   function progress({ title, text, icon = 'busy' }) {
     const dlg = build({ icon, title, text });
@@ -92,5 +126,5 @@ const Ask = (() => {
     };
   }
 
-  return { confirm, alert, progress };
+  return { confirm, alert, choose, progress };
 })();

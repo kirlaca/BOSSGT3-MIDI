@@ -165,6 +165,13 @@ const GT3 = (() => {
     ]);
   }
 
+  // The patch a bank select (CC#0) + program change points at, as the GT-3 sends them when
+  // a patch is picked on it (B0 00 bb, B0 20 00, C0 pp - measured); null if out of range.
+  function patchFromProgram(bank, program) {
+    const n = bank * PROGRAMS_PER_BANK_SELECT + program;
+    return Number.isInteger(n) && n >= 0 && n < ALL_PATCHES ? n : null;
+  }
+
   // ------------------------------------------------------------ requests
 
   // The FloorBoard's "identity request" is a read of the first system byte (tuner
@@ -443,7 +450,7 @@ const GT3 = (() => {
     PatchError, DEVICE_IDS, BLOCKS, PATCH_PACKETS, PATCH_SIZE, FILE_PATCH_SIZE, NAME_LENGTH,
     USER_PATCHES, ALL_PATCHES, PATCHES_PER_BANK, TARGETS,
     hex, hexBytes, checksum, dt1, rq1, splitSysex, parseDt1, concat,
-    patchLabel, patchArea, patchFromArea, programChange, isUser,
+    patchLabel, patchArea, patchFromArea, programChange, patchFromProgram, isUser,
     identityRequest, systemRequest, patchRequest, replyDevice,
     emptyPatch, clonePatch, defaultPatch, decodePatch, encodePatch, decodeFile, encodeFile,
     param, getValue, setValue, label, options, patchName, setPatchName, chain, isValidChain, setChain, samePatch, target,

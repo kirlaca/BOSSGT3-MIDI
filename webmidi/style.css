@@ -937,6 +937,7 @@ dialog.ask.ask-out::backdrop { animation: ask-fade .15s reverse forwards; }
 .ask-text { margin: 0 0 8px; color: var(--muted); line-height: 1.5; }
 .ask-actions { display: flex; justify-content: center; gap: 10px; margin-top: 18px; }
 .ask-actions .btn { min-width: 110px; padding: 10px 18px; }
+.ask-select { display: block; width: 100%; margin: 6px 0 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); color: var(--text); font: 600 14px/1.2 Consolas, monospace; }
 
 .ask-bar { height: 6px; margin: 16px 0 8px; overflow: hidden; background: var(--panel-2); border-radius: 3px; }
 .ask-bar span { display: block; width: 0; height: 100%; background: var(--accent); transition: width .15s; }

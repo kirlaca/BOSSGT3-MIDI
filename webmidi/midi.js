@@ -163,8 +163,29 @@ const Midi = (() => {
 
   const selectPatch = (conn, n, channel = 0) => send(conn.output, GT3.programChange(n, channel));
 
+  // Calls onPatch(n) whenever the GT-3 sends a patch change (picked on the unit): bank
+  // select CC#0 then program change. Listens on one input by name, or on every input.
+  // Returns a function that stops listening.
+  function watchPatchChanges(onPatch, inputName = null) {
+    const ins = inputs().filter(i => inputName === null || i.name === inputName);
+    const banks = new Map();
+    const handler = e => {
+      const [status, a, b] = e.data;
+      if ((status & 0xF0) === 0xB0 && a === 0x00) banks.set(e.currentTarget, b);
+      else if ((status & 0xF0) === 0xC0) {
+        const n = GT3.patchFromProgram(banks.get(e.currentTarget) ?? 0, a);
+        if (n !== null) onPatch(n);
+      }
+    };
+    for (const i of ins) {
+      i.addEventListener('midimessage', handler);
+      i.open().catch(() => {}); // held by another program: nothing to hear there
+    }
+    return () => { for (const i of ins) i.removeEventListener('midimessage', handler); };
+  }
+
   return {
     init, outputs, inputs, onPortsChanged, send, detectGt3,
-    readPatch, readSystem, sendTemp, writePatch, selectPatch,
+    readPatch, readSystem, sendTemp, writePatch, selectPatch, watchPatchChanges,
   };
 })();

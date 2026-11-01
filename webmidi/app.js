@@ -34,6 +34,7 @@ const state = {
   // as a placeholder. Nothing is sent or auto-written then, so a Write can't replace the
   // user's own sound with it. Cleared when the slot is read, or a patch is loaded on purpose.
   needsRead: false,
+  pedalPatch: null,   // the patch last picked on the GT-3 itself (its program change), null = not seen
 };
 
 const VIEWS = ['effects', 'assign', 'library', 'system'];
@@ -142,7 +143,9 @@ function rename(name) {
 
 let loadToken = 0;
 
-async function selectPatch(n, { send = true } = {}) {
+// send: tell the GT-3 to go there (program change); read: ask for the patch if the editor
+// doesn't know it (the GT-3 answers only in BULK LOAD).
+async function selectPatch(n, { send = true, read = send } = {}) {
   n = (n + GT3.ALL_PATCHES) % GT3.ALL_PATCHES;
   const wrote = flushAutoWrite();
   await flushSends();
@@ -151,11 +154,15 @@ async function selectPatch(n, { send = true } = {}) {
   followPage();
   state.needsRead = Boolean(state.conn && !state.library[n]);
   showPatch(state.library[n] || GT3.defaultPatch());
-  if (!send || !state.conn) return;
+  if (!state.conn) return;
+  if (!send && !read) {
+    if (state.needsRead) toast(`${GT3.patchLabel(n)} is not read yet - edits are held until it is read (BULK LOAD, or load your backup file)`);
+    return;
+  }
   try {
     await wrote;
-    await Midi.selectPatch(state.conn, n, state.conn.channel);
-    if (!state.library[n]) {
+    if (send) await Midi.selectPatch(state.conn, n, state.conn.channel);
+    if (read && !state.library[n]) {
       // Unknown slot: ask the GT-3 for it, unless the user has moved on meanwhile.
       const { patch } = await Midi.readPatch(state.conn, n);
       state.library[n] = patch;
@@ -1003,8 +1010,24 @@ function endRename(commit) {
 
 // ---------------------------------------------------------------- connection
 
-function connect(ports, { quiet = false } = {}) {
+let stopFollowing = () => {};
+
+// The editor follows patches picked on the GT-3 (it sends a program change for each).
+function followPedal(ports) {
+  stopFollowing();
+  stopFollowing = () => {};
+  if (!ports?.input) return;
+  stopFollowing = Midi.watchPatchChanges(n => {
+    state.pedalPatch = n;
+    if (n !== state.current) selectPatch(n, { send: false });
+  }, ports.input);
+}
+
+// `patch`: the patch the GT-3 is on - the editor goes there without sending a program
+// change (it never moves the GT-3 away from the patch picked on it) and reads it if unknown.
+function connect(ports, { quiet = false, patch = null } = {}) {
   state.conn = ports;
+  followPedal(ports);
   state.systemRead = false;
   try {
     if (ports) localStorage.setItem(CONN_KEY, JSON.stringify(ports)); else localStorage.removeItem(CONN_KEY);
@@ -1012,29 +1035,14 @@ function connect(ports, { quiet = false } = {}) {
   state.needsRead = false;
   renderStatus();
   $('#conn-dialog').close();
-  // Start from what the GT-3 really holds: go to the current patch and read it if unknown.
-  if (ports) return selectPatch(state.current);
+  if (ports) return selectPatch(patch ?? state.current, { send: false, read: true });
   if (!quiet) toast('Offline - edits stay in the editor.');
   return Promise.resolve();
 }
 
-// Reconnect to last session's ports if they are plugged in. Only asks the browser
-// for MIDI when there was a connection before, so a first visit gets no prompt.
-async function restoreConnection() {
-  let saved;
-  try { saved = JSON.parse(localStorage.getItem(CONN_KEY)); } catch { /* storage blocked */ }
-  if (!saved?.output) return;
-  try {
-    await Midi.init();
-    watchPorts();
-    if (Midi.outputs().some(p => p.name === saved.output)) {
-      state.conn = saved;
-      renderStatus();
-      toast(`Reconnected to ${saved.output} · Dev ${saved.dev + 1}`);
-      track('reconnect');
-      selectPatch(state.current);
-    }
-  } catch { /* stay offline; the connection dialog shows the reason */ }
+// Last session's ports - they preselect the connection dialog; the editor never connects by itself.
+function savedPorts() {
+  try { return JSON.parse(localStorage.getItem(CONN_KEY)) || null; } catch { return null; }
 }
 
 let watching = false;
@@ -1055,7 +1063,8 @@ function watchPorts() {
 function fillPortLists() {
   const outputs = Midi.outputs();
   const inputs = Midi.inputs();
-  for (const [id, ports, current] of [['#port-out', outputs, state.conn?.output], ['#port-in', inputs, state.conn?.input]]) {
+  const saved = state.conn || savedPorts();
+  for (const [id, ports, current] of [['#port-out', outputs, saved?.output], ['#port-in', inputs, saved?.input]]) {
     const select = $(id);
     const keep = select.value || current;
     select.replaceChildren(...ports.map(p => {
@@ -1079,8 +1088,9 @@ function numberOptions(select, count, selected) {
 async function openConnDialog() {
   const msg = $('#conn-msg');
   msg.textContent = 'Asking the browser for MIDI access…';
-  numberOptions($('#port-dev'), GT3.DEVICE_IDS, state.conn?.dev ?? 0);
-  numberOptions($('#port-channel'), MIDI_CHANNELS, state.conn?.channel ?? 0);
+  const saved = state.conn || savedPorts();
+  numberOptions($('#port-dev'), GT3.DEVICE_IDS, saved?.dev ?? 0);
+  numberOptions($('#port-channel'), MIDI_CHANNELS, saved?.channel ?? 0);
   $('#port-out').replaceChildren();
   $('#port-in').replaceChildren();
   $('#conn-dialog').showModal();
@@ -1088,6 +1098,12 @@ async function openConnDialog() {
     await Midi.init();
     watchPorts();
     fillPortLists();
+    // Hear the patch picked on the GT-3 before BULK LOAD, so connecting can stay on it.
+    const stop = Midi.watchPatchChanges(n => {
+      state.pedalPatch = n;
+      msg.textContent = `The GT-3 is on ${GT3.patchLabel(n)} - now put it in BULK LOAD and press Auto-detect.`;
+    });
+    $('#conn-dialog').addEventListener('close', stop, { once: true });
   } catch (e) {
     msg.textContent = e.message;
     if (navigator.requestMIDIAccess) track('midi-denied'); // no Web MIDI at all is counted on load
@@ -1104,8 +1120,19 @@ async function autoDetect() {
     // Not yet checked on the unit: device ID 1-16 is taken to mean the same MIDI channel.
     if (found) {
       track('connect-auto');
+      // The patch picked on the GT-3: heard as it was picked, else the user says which it is.
+      let patch = state.pedalPatch;
+      if (patch === null) {
+        patch = await Ask.choose({
+          title: 'Which patch is selected on the GT-3?',
+          text: 'The editor did not see it being picked. It stays on that patch and reads it now.',
+          options: Array.from({ length: GT3.ALL_PATCHES }, (_, n) => [n, `${GT3.patchLabel(n)}  ${state.library[n] ? GT3.patchName(state.library[n]) : ''}`]),
+          value: state.current, label: 'Patch on the GT-3', confirmText: 'Connect',
+        });
+        if (patch === null) return;
+      }
       // It answered, so it is in BULK LOAD now: the moment to read what it holds.
-      await connect({ ...found, channel: found.dev % MIDI_CHANNELS });
+      await connect({ ...found, channel: found.dev % MIDI_CHANNELS }, { patch });
       const unread = state.library.slice(0, GT3.USER_PATCHES).filter(p => !p).length;
       if (unread && await Ask.confirm({
         icon: 'question', title: 'Connected - read the user patches too?',
@@ -1175,10 +1202,10 @@ function wire() {
     const output = $('#port-out').value;
     const input = $('#port-in').value;
     if (!output) return;
-    connect({ output, input, dev: Number($('#port-dev').value), channel: Number($('#port-channel').value) });
+    connect({ output, input, dev: Number($('#port-dev').value), channel: Number($('#port-channel').value) }, { patch: state.pedalPatch });
     track('connect-manual');
   });
-  $('#conn-disconnect').addEventListener('click', () => connect(null));
+  $('#conn-disconnect').addEventListener('click', () => { stopFollowing(); connect(null); });
 
   // Drop a .syx file anywhere on the page to load it.
   document.addEventListener('dragover', e => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); });
@@ -1211,7 +1238,6 @@ function init() {
   state.view = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'effects';
   showPatch(GT3.defaultPatch());
   renderStatus();
-  restoreConnection();
   // Visitors on Safari / iOS can never connect - worth knowing how many arrive.
   if (!navigator.requestMIDIAccess) track('no-webmidi');
 }
