@@ -368,74 +368,6 @@ const GT3 = (() => {
     return { ...t, param: PARAM_INDEX.get(t.block * 256 + t.offset) || null };
   }
 
-  // ------------------------------------------------------------ live knobs (Assign + MIDI CC)
-
-  // In play mode the GT-3 ignores SysEx; it only takes it in BULK LOAD mode, and plays it
-  // after EXIT (measured 2026-11-01). MIDI CC it takes at once - so a "live knob" is an
-  // Assign of the temporary patch with a CC source and the parameter as its target:
-  // the editor sends the CC, the GT-3 follows while the knob turns.
-  const ASSIGN_FIRST = 0x0F;          // Assign 1-8 = blocks 0F-16
-  const ASSIGN_COUNT = 8;
-  const LIVE_CC_FIRST = 20;           // Assign i listens to CC#(20 + i): CC#20-27
-  // Assign block bytes (midi.xml): on, target (2), min (2), max (2), source, mode, range lo, range hi, ...
-  const ASSIGN_ON = 0, ASSIGN_TARGET = 1, ASSIGN_MIN = 3, ASSIGN_MAX = 5, ASSIGN_SOURCE = 7, ASSIGN_MODE = 8,
-    ASSIGN_RANGE_LO = 9, ASSIGN_RANGE_HI = 10;
-
-  // Source list: 0-6 the pedals and internal sources, then CC#1-31 = 7-37, CC#64-95 = 38-69.
-  function ccSource(cc) {
-    if (cc >= 1 && cc <= 31) return 6 + cc;
-    if (cc >= 64 && cc <= 95) return cc - 26;
-    throw new PatchError(`an Assign can't listen to CC#${cc}`);
-  }
-
-  const liveCc = assign => LIVE_CC_FIRST + assign;
-
-  // The target code that drives a parameter, or null if no Assign can reach it.
-  function targetCode(block, offset) {
-    const t = TARGETS.find(x => x.block === block && x.offset === offset);
-    return t ? t.code : null;
-  }
-
-  // Assigns (0-7) the patch leaves switched off - the ones live knobs may borrow.
-  const freeAssigns = patch => Array.from({ length: ASSIGN_COUNT }, (_, i) => i)
-    .filter(i => patch.blocks[ASSIGN_FIRST + i][ASSIGN_ON] === 0);
-
-  // The GT-3 maps CC 0-127 onto the Assign's Min-Max range; Natural OD (0) at CC 0 and
-  // Metal 2 (9 of 0-11) at CC 104 were measured, consistent with min + floor(cc * span / 127).
-  function valueForCc(p, cc) {
-    return p.min + Math.floor((cc * (p.max - p.min)) / 127);
-  }
-  // The smallest CC that gives `value` (or, for spans over 127, the nearest the CC reaches).
-  function ccForValue(p, value) {
-    const span = p.max - p.min;
-    if (span <= 0) return 0;
-    return Math.min(127, Math.max(0, Math.ceil(((value - p.min) * 127) / span)));
-  }
-
-  const controlChange = (channel, cc, value) => Uint8Array.from([0xB0 | channel, cc, value]);
-
-  // A copy of the patch whose Assigns drive the live knobs: slots = [{assign, block, offset}].
-  // Each borrowed Assign gets target = the parameter, Min / Max = its whole range, source =
-  // its CC, Normal mode, the full CC range; the rest of the block stays as it was.
-  function withLiveAssigns(patch, slots) {
-    const out = clonePatch(patch);
-    for (const { assign, block, offset } of slots) {
-      const code = targetCode(block, offset);
-      if (code === null) throw new PatchError(`no Assign target for ${hex(block)}/${hex(offset)}`);
-      const p = param(block, offset);
-      const d = out.blocks[ASSIGN_FIRST + assign];
-      d[ASSIGN_ON] = 1;
-      d.set([code >> 7, code & 0x7F], ASSIGN_TARGET);
-      d.set([p.min >> 7, p.min & 0x7F], ASSIGN_MIN);
-      d.set([p.max >> 7, p.max & 0x7F], ASSIGN_MAX);
-      d[ASSIGN_SOURCE] = ccSource(liveCc(assign));
-      d[ASSIGN_MODE] = 0;
-      d[ASSIGN_RANGE_LO] = 0;
-      d[ASSIGN_RANGE_HI] = 127;
-    }
-    return out;
-  }
-
   // ------------------------------------------------------------ system settings
 
   // The system area (tuner, global, system, MIDI, manual) as it came in: one
@@ -515,7 +447,6 @@ const GT3 = (() => {
     identityRequest, systemRequest, patchRequest, replyDevice,
     emptyPatch, clonePatch, defaultPatch, decodePatch, encodePatch, decodeFile, encodeFile,
     param, getValue, setValue, label, options, patchName, setPatchName, chain, isValidChain, setChain, samePatch, target,
-    ASSIGN_COUNT, LIVE_CC_FIRST, ccSource, liveCc, targetCode, freeAssigns, valueForCc, ccForValue, controlChange, withLiveAssigns,
     systemSyx: () => base64Bytes(SYSTEM_SYX_BASE64),
     SYSTEM_AREAS, decodeSystem, cloneSystem, systemArea, systemParam, getSystemValue, setSystemValue, encodeSystem,
   };

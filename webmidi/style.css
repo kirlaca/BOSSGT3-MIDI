@@ -466,28 +466,6 @@ button { font: inherit; color: inherit; }
 .knob.dragging .knob-cap-top { fill: #2f2f33; }
 .knob-value { min-height: 12px; font: 600 10.5px/1 Consolas, monospace; white-space: nowrap; }
 
-/* Live knob dot: at the dial's lower right, out of the layout so the pedals keep their size.
-   Picked = gold ring, live on the GT-3 = lit red like a LED. */
-.knob-wrap { position: relative; }
-.knob-live {
-  position: absolute;
-  right: -1px;
-  bottom: 13px;
-  width: 11px;
-  height: 11px;
-  padding: 0;
-  border: 1.5px solid color-mix(in srgb, var(--ink) 45%, transparent);
-  border-radius: 50%;
-  background: transparent;
-  cursor: pointer;
-  opacity: .55;
-}
-.knob-wrap:hover .knob-live, .knob-live:focus-visible { opacity: 1; }
-.knob-live:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.knob-live.picked { opacity: 1; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 35%, transparent); }
-.knob-live.armed { opacity: 1; border-color: #000; background: var(--led); box-shadow: 0 0 6px rgba(255, 59, 47, .8); }
-.live-btn.armed { border-color: var(--led); color: var(--text); box-shadow: inset 0 0 0 1px var(--led); }
-
 /* EQ faders */
 .faders { display: flex; justify-content: space-around; width: 100%; padding: 4px 0; }
 .fader-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
