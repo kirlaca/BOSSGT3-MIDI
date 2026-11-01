@@ -277,6 +277,9 @@ Az 1–2. lépés a pedál nélkül is elkezdhető; a 3. lépéstől kell a ped�
 - **Böngészős Write** (`71b005b`, BULK LOAD → Write → EXIT → programváltás): működik. A felhasználó szerint
   **a pedál saját WRITE gombja** normál kijelzésnél a szerkesztőből élőben küldött változásokkal együtt menti a patchet
   (BULK nélkül) – a Write ablak ezt gyorsabb útként ajánlja. A szerkesztő erről nem értesül (a patch „szerkesztett” marad).
+- **BULK LOAD-ba küldés MIDI-ből: nincs rá mód.** A GT-5 MIDI Implementation csak „One way communication”-t (RQ1, DT1)
+  ír, handshake-et (WSD/RQD/DAT/ACK) nem, és a címtérképben nincs mód-/parancscím; Bulk Load Ready csak a Utility
+  menüből. GT-3-on mérve: Roland RQD (`F0 41 00 00 1B 41 0B 00 03 00 00 00 00 06 6C F7`) normál módban – nincs válasz.
 - Nem mért még: a teljes patch temp-be küldése normál módban (Revert / Init / fájlbetöltés: 23 blokk-üzenet) – szól-e.
 - Az U35-4 a próbák után a mentésből visszaállítva („PrePH DRIVE”, eredeti hang).
 - Nyitott: system terület írása; a `03` és `05` területek jelentése (a `05`: 4 × 13 db 11 bájtos név?);
