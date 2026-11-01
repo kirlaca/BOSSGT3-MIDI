@@ -214,7 +214,7 @@ Az 1–2. lépés a pedál nélkül is elkezdhető; a 3. lépéstől kell a ped�
   `listen`, `receive`, `handshake`) és `tools/gt3_param.py <0B|0C> <blokk> <offset> <érték>` (egy DT1 a temp patchbe).
 - A pedál: Device ID 1 (SysEx-ben `00`). Patchváltáskor küld: `B0 00 00`, `B0 20 00`, `C0 nn` (1-es csatorna).
   A gépről küldött programváltást is elfogadja.
-- **Normál (play) módban a GT-3 semmilyen SysEx-re nem reagál:** az identity kérésre (00–1F és 7F) nincs válasz;
+- ~~**Normál (play) módban a GT-3 semmilyen SysEx-re nem reagál:**~~ (téves, lásd a 19:00-s helyesbítést – a DT1 működik, csak az RQ1 nem) az identity kérésre (00–1F és 7F) nincs válasz;
   Master Level DT1 a `0C 00 0A 00` és a `0B 00 0A 00` címre: nincs hatás, akkor sem, ha a kijelzőn a Master Level áll.
   → A böngészős szerkesztő ezért nem tudta kiolvasni a patchet, így a patchváltáson kívül minden tiltva maradt.
 - **BULK LOAD módban** (UTILITY 4× → PARAMETER 10×, kijelzőn „waiting”):
@@ -264,6 +264,16 @@ Az 1–2. lépés a pedál nélkül is elkezdhető; a 3. lépéstől kell a ped�
 - **Böngészős próba – élő knobok** (`7bbc53c`): Auto-detect BULK LOAD-ban csatlakozott és kiolvasott; két knob
   kijelölve, Live (BULK → Send → EXIT → Done) után a Master és a PRE Master / Middle tekerése **hallhatóan, azonnal
   változtatta a hangot**. A kezelés (UX) még megbeszélendő.
+- **HELYESBÍTÉS (19:00): normál módban a DT1 élőben működik.** Böngészőből (BULK-os csatlakozás + EXIT után)
+  pötty nélkül is szólt minden szerkesztés. Pythonból, normál módban: OD/DS On (`0C 00 03 00 = 01`) → LED + torzítás;
+  **friss bekapcsolás után, BULK nélkül is**; Master Level = 0 → néma, 100 → vissza. A reggeli „nincs hatás” mérési
+  hiba volt: csak a Master Level 100 → 30-at néztük (nehezen hallható), és **a GT-3 kijelzője nem követi a SysEx-es
+  értékváltozást, módosítás-jelet sem mutat**. RQ1-re normál módban továbbra sincs válasz (19:01-kor újramérve).
+  → Végleges kép = a Qt FloorBoard felépítése: **olvasás (és Write) BULK LOAD-ban, szerkesztés normál módban, élőben.**
+  A reggeli tünet oka: a szerkesztő normál módban nem tudta kiolvasni a patchet, ezért minden küldést letiltott (`needsRead`).
+  A pöttyös Assign + CC élő knobok (`7bbc53c`) feleslegesek, visszavonva (`9a49280`); a CC + Assign mérések ettől még
+  érvényesek (élő kapcsolókhoz később jól jöhetnek). Új menet (`e00077f`): Auto-detect BULK-ban → felajánlja mind a 140
+  patch kiolvasását (0,5 s szünettel) → „nyomd meg az EXIT-et” → élő szerkesztés.
 - Az U35-4 a próbák után a mentésből visszaállítva („PrePH DRIVE”, eredeti hang).
 - Nyitott: system terület írása; a `03` és `05` területek jelentése (a `05`: 4 × 13 db 11 bájtos név?);
   a szerkesztő átalakítása (BULK LOAD-os kapcsolódás, „EXIT után szól” jelzés, patchenkénti Read szünettel,
