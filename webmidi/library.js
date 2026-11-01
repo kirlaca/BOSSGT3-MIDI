@@ -139,9 +139,10 @@ async function libraryRead() {
   const numbers = selection();
   if (!await Ask.confirm({
     icon: 'question', title: `Read ${numbers.length} patches from the GT-3?`,
-    text: 'The GT-3 answers only in BULK LOAD mode: UTILITY 4 times, then PARAMETER ▶ 10 times - the display shows "waiting". Press EXIT afterwards.',
+    text: 'The GT-3 answers only in BULK LOAD mode: UTILITY 4 times, then PARAMETER ▶ 10 times - the display shows "waiting".',
     confirmText: 'Read',
   })) return;
+  bulkStarted();
   const done = await forEachPatch('Reading from the GT-3', numbers, async n => {
     state.library[n] = (await Midi.readPatch(state.conn, n)).patch;
     state.unsynced.delete(n);
@@ -149,6 +150,7 @@ async function libraryRead() {
   });
   if (done === numbers.length) toast(`Read ${done} patches`);
   track('library-read');
+  await pressExit();
   if (numbers.includes(state.current)) showStored();
 }
 

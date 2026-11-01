@@ -79,6 +79,7 @@ button { font: inherit; color: inherit; }
 .bulk-read:disabled { opacity: .4; cursor: not-allowed; }
 /* The patch on screen is not read yet: the button asks for it. */
 .bulk-read.wanted { border-color: var(--accent); color: var(--accent); }
+.bulk-read.exit { border-color: var(--led); color: #fff; background: color-mix(in srgb, var(--led) 30%, var(--panel)); font-weight: 700; }
 
 /* ------------------------------------------------------------ patch display + actions */
 

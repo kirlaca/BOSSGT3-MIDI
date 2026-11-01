@@ -32,7 +32,8 @@ const state = {
   // shows the default patch as a placeholder. Edits still go out - they are heard - and the
   // Write dialog warns. Cleared when the slot is read, or a patch is loaded on purpose.
   needsRead: false,
-  pedalPatch: null,   // the patch last picked on the GT-3 itself (its program change), null = not seen
+  pedalPatch: null,
+  bulk: false,        // the GT-3 was put in BULK LOAD for the editor and the user has not confirmed EXIT yet   // the patch last picked on the GT-3 itself (its program change), null = not seen
 };
 
 const VIEWS = ['effects', 'assign', 'library', 'system'];
@@ -180,6 +181,31 @@ function followPage() {
   state.page = Math.floor((state.area === 'user' ? bank : bank - USER_BANKS) / BANKS_PER_PAGE);
 }
 
+// ---------------------------------------------------------------- BULK LOAD round trip
+
+// The GT-3 was asked into BULK LOAD: until EXIT it plays no edits, so the header says so.
+function bulkStarted() {
+  state.bulk = true;
+  renderConnText();
+}
+
+// After any BULK LOAD work: the GT-3 stays in BULK LOAD until EXIT is pressed on it, and
+// only then plays the editor's edits again (and stores what it received, after a check).
+async function pressExit({ stored = false } = {}) {
+  bulkStarted();
+  await Ask.alert({
+    icon: 'warning', title: 'Now press EXIT on the GT-3',
+    text: [
+      stored ? 'It checks the received data ("Checking…", about 5 seconds) and stores it.'
+        : 'The GT-3 is still in BULK LOAD ("waiting").',
+      'After EXIT, back on the patch display, you can edit online: every change in the editor is heard at once.',
+    ],
+    confirmText: 'I pressed EXIT',
+  });
+  state.bulk = false;
+  renderConnText();
+}
+
 // ---------------------------------------------------------------- write
 
 // The GT-3 takes data for its memory only in BULK LOAD mode and stores it on EXIT, after
@@ -192,12 +218,9 @@ async function inBulkLoad({ title, text, action, work }) {
     confirmText: action,
   });
   if (!ready) return false;
+  bulkStarted();
   await work();
-  await Ask.alert({
-    icon: 'warning', title: 'Press EXIT on the GT-3',
-    text: ['It checks the data ("Checking…", about 5 seconds) and stores it.', 'When it is back on the patch display, press Done.'],
-    confirmText: 'Done',
-  });
+  await pressExit({ stored: true });
   return true;
 }
 
@@ -294,12 +317,10 @@ async function runRead() {
   const system = $('#read-system').checked;
   $('#read-dialog').close();
   if (!state.conn) return;
+  bulkStarted();
   const ok = what === 'all' ? await readUserPatches() : await readCurrent();
   if (ok && system) await readSystem();
-  await Ask.alert({
-    icon: ok ? 'success' : 'warning', title: 'Press EXIT on the GT-3',
-    text: 'Back on the patch display, every edit is heard at once again.',
-  });
+  await pressExit();
 }
 
 // The current patch: what the GT-3 plays now (its temporary patch - becomes the edited sound)
@@ -324,7 +345,8 @@ async function readCurrent() {
     track('read-patch');
     return true;
   } catch (e) {
-    Ask.alert({
+    box.close();
+    await Ask.alert({
       icon: 'error', title: 'Read failed',
       text: [e.message, 'Is the GT-3 in BULK LOAD ("waiting")? Is the Device ID in the MIDI connection the one set on the GT-3?'],
     });
@@ -356,7 +378,8 @@ async function readUserPatches() {
     track('read-gt3');
     return true;
   } catch (e) {
-    Ask.alert({
+    box.close();
+    await Ask.alert({
       icon: 'error', title: 'Read failed',
       text: [`At ${GT3.patchLabel(n)}: ${e.message}`, `${n} patches were read before it.`,
         'Is the GT-3 still in BULK LOAD ("waiting")? If it is, unplug and replug the MIDI interface and read again.'],
@@ -984,8 +1007,12 @@ function setView(view) {
 }
 
 function renderConnText() {
-  // Read (BULK) stands out while the patch on screen is only the placeholder.
-  $('#bulk-read').classList.toggle('wanted', Boolean(state.conn && state.needsRead));
+  // Read (BULK) stands out while the patch on screen is only the placeholder, and turns
+  // into a reminder while the GT-3 waits in BULK LOAD for EXIT.
+  const btn = $('#bulk-read');
+  btn.classList.toggle('wanted', Boolean(state.conn && state.needsRead && !state.bulk));
+  btn.classList.toggle('exit', state.bulk);
+  btn.textContent = state.bulk ? '⚠ Press EXIT on the GT-3' : '⇩ Read (BULK)';
   $('#conn-text').textContent = state.conn
     ? `${state.conn.output} · Dev ${state.conn.dev + 1}${state.needsRead ? ' · not read' : ''}`
     : 'Offline';
@@ -1153,7 +1180,7 @@ function wire() {
   $('#file-name').addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); saveFile(); }
   });
-  $('#bulk-read').addEventListener('click', openReadDialog);
+  $('#bulk-read').addEventListener('click', () => (state.bulk ? pressExit() : openReadDialog()));
   $('#read-ok').addEventListener('click', runRead);
   $('#pm-prev').addEventListener('click', () => { state.page--; renderPatchMap(); });
   $('#pm-next').addEventListener('click', () => { state.page++; renderPatchMap(); });
