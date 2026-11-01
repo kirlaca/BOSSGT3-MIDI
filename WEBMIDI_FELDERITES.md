@@ -274,6 +274,10 @@ Az 1–2. lépés a pedál nélkül is elkezdhető; a 3. lépéstől kell a ped�
   A pöttyös Assign + CC élő knobok (`7bbc53c`) feleslegesek, visszavonva (`9a49280`); a CC + Assign mérések ettől még
   érvényesek (élő kapcsolókhoz később jól jöhetnek). Új menet (`e00077f`): Auto-detect BULK-ban → felajánlja mind a 140
   patch kiolvasását (0,5 s szünettel) → „nyomd meg az EXIT-et” → élő szerkesztés.
+- **Böngészős Write** (`71b005b`, BULK LOAD → Write → EXIT → programváltás): működik. A felhasználó szerint
+  **a pedál saját WRITE gombja** normál kijelzésnél a szerkesztőből élőben küldött változásokkal együtt menti a patchet
+  (BULK nélkül) – a Write ablak ezt gyorsabb útként ajánlja. A szerkesztő erről nem értesül (a patch „szerkesztett” marad).
+- Nem mért még: a teljes patch temp-be küldése normál módban (Revert / Init / fájlbetöltés: 23 blokk-üzenet) – szól-e.
 - Az U35-4 a próbák után a mentésből visszaállítva („PrePH DRIVE”, eredeti hang).
 - Nyitott: system terület írása; a `03` és `05` területek jelentése (a `05`: 4 × 13 db 11 bájtos név?);
   a szerkesztő átalakítása (BULK LOAD-os kapcsolódás, „EXIT után szól” jelzés, patchenkénti Read szünettel,

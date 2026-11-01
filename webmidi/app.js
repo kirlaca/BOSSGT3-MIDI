@@ -266,7 +266,9 @@ function openWriteDialog() {
     ? 'Offline: the patch is only stored in the editor (save it to a file to keep it).'
     : state.needsRead
       ? 'This patch has not been read from the GT-3: it starts from the default patch, not from what the GT-3 holds.'
-      : '';
+      // Measured: the GT-3's own WRITE stores its temporary patch, edits from the editor included.
+      : 'Write here goes through BULK LOAD. Quicker for the patch the GT-3 is on: press WRITE on the GT-3 itself - '
+        + 'it stores what you hear, the editor changes included.';
   $('#write-dialog').showModal();
   select.focus();
 }
