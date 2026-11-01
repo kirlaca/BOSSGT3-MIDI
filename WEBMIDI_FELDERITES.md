@@ -1,7 +1,7 @@
 # GT-3 FxFloorBoard → Web MIDI port – felderítés
 
-Dátum: 2026-10-06 (frissítve 2026-10-17) · Állapot: **1–2. és 4–8. lépés kész** (generátor, protokoll, Web MIDI réteg, effektek oldal –
-pedál nélkül tesztelve); a 3. lépés (próba a pedállal) a pedál megérkezésére vár. Részletek: [`webmidi/README.md`](webmidi/README.md).
+Dátum: 2026-10-06 (frissítve 2026-11-01) · Állapot: **minden lépés kész**, a 3. (próba a pedállal) 2026-11-01-én –
+lásd a „2026-11-01” szakaszt. Nyitott: az EXP / CTL / Assign és a System oldal írása a pedálon, a teljes patch temp-be küldése. Részletek: [`webmidi/README.md`](webmidi/README.md).
 
 ## Döntés
 

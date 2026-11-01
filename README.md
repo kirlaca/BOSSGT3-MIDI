@@ -6,7 +6,7 @@ A patch editor for the **BOSS GT-3 Guitar Effects Processor** (1999), controlled
 
 No install needed: the editor runs entirely in Chrome or Edge using the Web MIDI API.
 
-> **Status:** feature-complete, but **not yet tried with a real GT-3** – only against a simulated unit and the 325 real patch files that ship with the FloorBoard. Back up your patches before writing to the unit (Library → Read from GT-3 → Save selected…). [`WEBMIDI_FELDERITES.md`](WEBMIDI_FELDERITES.md) lists what is still to be checked on the hardware.
+> **Status:** tried with a real GT-3 (November 2026): connecting, reading, live editing and Write work. **The GT-3 answers only in BULK LOAD mode** (reading, Write from the editor); edits are heard at once in normal mode. Not checked on the unit yet: EXP / CTL / Assign and System page changes. Back up your patches before writing to the unit. [`WEBMIDI_FELDERITES.md`](WEBMIDI_FELDERITES.md) has the measurements (Hungarian).
 
 ## What it does
 
@@ -14,21 +14,22 @@ No install needed: the editor runs entirely in Chrome or Edge using the Web MIDI
 - **EXP / CTL / Assign page:** the expression pedal, CTL pedal and the 8 assigns – 207 targets, Min / Max in the target's own units, source, mode, active range, response curve, internal and wave pedal.
 - **Library page:** all 340 patches (140 user + 200 preset) in a list; read, write, copy, init and save many at once. Patches changed only in the editor are marked.
 - **System page:** tuner, output select, global EQ, controls, patch change, MIDI and manual mode settings.
-- Edits are sent to the unit's temporary patch live, so you hear them immediately; Write stores them in a user patch.
+- Edits are sent to the unit's temporary patch live, so you hear them immediately; the unit's own WRITE button or the editor's Write stores them. The editor follows the patches picked on the unit.
 - Reads and writes the FloorBoard's `.syx` files (single patches, bulk dumps, system dumps), so files move freely between the two programs.
 
 ## What you need
 
 - A BOSS GT-3.
-- A USB-MIDI interface connected to both MIDI IN and MIDI OUT of the unit. Use a decent one: cheap no-name adapters often pass Program Change but drop SysEx.
+- A USB-MIDI interface connected to both MIDI IN and MIDI OUT of the unit. A decent, opto-isolated one is best; a DOREMiDi cable works too, but may stall after long dumps (replug its USB).
 - Chrome or Edge on desktop or Android. Safari and iOS do not support Web MIDI.
 
 ## Using it
 
 1. Connect the interface, crossed over: interface OUT → GT-3 MIDI IN, interface IN ← GT-3 MIDI OUT.
 2. Open the editor and allow MIDI / SysEx access when the browser asks.
-3. Use auto-detect (it tries every port and all 32 device IDs), or pick the ports, device ID and patch change channel yourself.
-4. After connecting, the editor goes to its current patch on the GT-3 and reads it; other patches are read when you select them. Until the current patch is read, edits are not sent and auto write is held (the status shows "not read"), so a Write can't replace your own sound with the editor's default patch. **Read GT-3** loads all 140 user patches at once.
+3. Click **Offline** (top right), check the ports, device ID and patch change channel, **Connect**. This sends nothing and needs no BULK LOAD.
+4. Pick the patch on the GT-3 – the editor follows. To see what it holds, put the GT-3 in **BULK LOAD** (UTILITY 4×, PARAMETER ▶ 10×, "waiting"), click **Read (BULK)** (this patch, or all 140), then press **EXIT** on the unit.
+5. Edit: every change is heard at once. Store with the unit's **WRITE** button, or with the editor's **Write** (through BULK LOAD, into any user patch).
 
 User guides: [English](webmidi/guide.html) · [Magyar](webmidi/utmutato.html). They can also be opened from the editor's header.
 
@@ -71,10 +72,10 @@ The editor also counts a few actions as GoatCounter events (only the event name 
 |---|---|
 | `no-webmidi` | The page was opened in a browser without Web MIDI (Safari, iOS) |
 | `midi-denied` | The browser refused MIDI / SysEx access |
-| `connect-auto`, `connect-manual`, `reconnect` | Connected by auto-detect, by picking ports, or restored from the last session |
-| `detect-not-found` | Auto-detect found no GT-3 |
-| `read-gt3`, `read-gt3-failed` | Read GT-3 (all 140 user patches) succeeded or failed |
-| `write-patch`, `write-patch-offline`, `auto-write-on` | A patch was written by hand (to the GT-3 / editor only), auto write was turned on |
+| `connect-manual` | Connected to the picked ports |
+| `read-patch` | Read (BULK) of the current patch |
+| `read-gt3`, `read-gt3-failed` | Read (BULK) of all 140 user patches succeeded or failed |
+| `write-patch`, `write-patch-offline` | A patch was written (to the GT-3 / editor only) |
 | `load-file`, `save-file` | File load and save on the patch page |
 | `library-read`, `library-write`, `library-copy`, `library-init`, `library-save` | Library page actions |
 | `system-read`, `system-send` | System settings read from or sent to the GT-3 |

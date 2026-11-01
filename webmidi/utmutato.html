@@ -29,7 +29,7 @@
         <li class="plain"><a href="#mi">Mi ez?</a></li>
         <li value="1"><a href="#kell">Amire szükség van</a></li>
         <li value="2"><a href="#inditas">Indítás</a></li>
-        <li value="3"><a href="#csatlakozas">Csatlakozás</a></li>
+        <li value="3"><a href="#csatlakozas">Csatlakozás és kiolvasás</a></li>
         <li value="4"><a href="#fejlec">A fejléc</a></li>
         <li value="5"><a href="#effektek">Effects oldal</a></li>
         <li value="6"><a href="#assign">EXP / CTL / Assign</a></li>
@@ -48,7 +48,7 @@
         <p class="lede">A BOSS GT-3 gitár-multieffekt szerkesztője, amely teljesen a böngészőben fut. A patch effektjei pedálokként jelennek meg, abban a sorrendben, ahogy a patch láncában állnak. A böngésző USB-MIDI interfészen keresztül közvetlenül beszél a GT-3-mal: nem kell hozzá telepítés és szerver sem.</p>
       </header>
 
-      <p class="note warn"><strong>Állapot:</strong> az editor elkészült, de <strong>valódi GT-3-mal még nem próbáltuk ki</strong>, csak egy szimulált pedál ellen és a Qt-s FloorBoard 325 valódi patchfájlján. Az első használatkor érdemes előbb a <strong>Library</strong> oldalon mindent kiolvasni és fájlba menteni (<a href="#fajlok">10. pont</a>), és csak utána írni a pedálra.</p>
+      <p class="note warn"><strong>Állapot:</strong> az editort 2026. november 1-jén valódi GT-3-mal kipróbáltuk: a csatlakozás, a kiolvasás, az élő szerkesztés és a Write működik. A legfontosabb tudnivaló: <strong>a GT-3 csak BULK LOAD módban válaszol</strong> (kiolvasás, az editorból indított Write), a szerkesztés viszont normál módban, azonnal hallatszik (<a href="#csatlakozas">3. pont</a>). Az első használatkor érdemes mindent kiolvasni és fájlba menteni (<a href="#fajlok">10. pont</a>). A pedálon még nem ellenőrzött részek: az EXP / CTL / Assign és a System oldal változtatásai.</p>
 
       <h2 id="mi">Mi ez?</h2>
       <p>Ez a régi Qt-s <em>GT-3 FxFloorBoard</em> program böngészős változata. Ugyanazokat a MIDI üzeneteket küldi, és ugyanazokat a <code>.syx</code> fájlokat olvassa és írja, de egyetlen weboldal, amely Chrome-ban vagy Edge-ben bármelyik gépen elindul.</p>
@@ -63,7 +63,7 @@
       <h2 id="kell"><span class="num">1</span>Amire szükség van</h2>
       <ul>
         <li><strong>Böngésző:</strong> Chrome vagy Edge, Windowson, macOS-en, Linuxon vagy Androidon. <strong>Safari és iPhone/iPad nem jó</strong>, mert nem támogatják a Web MIDI-t.</li>
-        <li><strong>USB-MIDI interfész.</strong> Jó minőségű, optocsatolós interfész kell (pl. Roland UM-ONE mkII). Az olcsó „USB2.0-MIDI” kábeleken gyakran csak a patchváltás megy át, a SysEx (patch olvasás és írás) nem.</li>
+        <li><strong>USB-MIDI interfész.</strong> Jó minőségű, optocsatolós interfész ajánlott (pl. Roland UM-ONE mkII). Egy DOREMiDi kábellel is működik; az hosszabb folyamatos adatforgalom után néha „beragad” (nem jön be semmi) – ilyenkor húzd ki és dugd vissza az USB-t. Az editor ezért kiolvasáskor patchenként rövid szünetet tart.</li>
         <li>Androidon egy <strong>USB OTG adapter</strong> is kell.</li>
       </ul>
 
@@ -77,7 +77,7 @@
         <div><span class="jackname">interfész OUT</span><span class="arrow">→</span><span class="jackname unit">GT-3 MIDI IN</span></div>
         <div><span class="jackname">interfész IN</span><span class="arrow">←</span><span class="jackname unit">GT-3 MIDI OUT</span></div>
       </div>
-      <p>A két dugót <strong>keresztbe</strong> kell bedugni. Egyes kábeleken fordítva van a felirat (azt jelöli, hová kell dugni) – ha a patchváltás nem megy, cseréld fel a két dugót. Az editornak <strong>mindkét irány kell</strong>: a GT-3 MIDI OUT-ja nélkül csak küldeni tud, kiolvasni nem.</p>
+      <p>A két dugót <strong>keresztbe</strong> kell bedugni. Egyes kábeleken fordítva van a felirat (azt jelöli, hová kell dugni) – ha a patchváltás nem megy, cseréld fel a két dugót. Az editornak <strong>mindkét irány kell</strong>: a GT-3 MIDI OUT-ja nélkül csak küldeni tud, kiolvasni nem. A dugókat <strong>nyomd be ütközésig</strong>: egy lazán ülő dugó a GT-3 MIDI OUT-jában az egész visszairányt elnémítja.</p>
 
       <h2 id="inditas"><span class="num">2</span>Indítás</h2>
       <p>Az editor a <code>webmidi</code> mappában lévő <code>index.html</code>. Háromféleképpen nyithatod meg:</p>
@@ -88,22 +88,37 @@
       </ul>
       <p class="note">Windowson egy MIDI portot egyszerre csak egy program használhat. Ha a Qt-s FloorBoard vagy egy DAW nyitva tartja az interfészt, zárd be.</p>
 
-      <h2 id="csatlakozas"><span class="num">3</span>Csatlakozás a GT-3-hoz</h2>
+      <h2 id="csatlakozas"><span class="num">3</span>Csatlakozás és kiolvasás</h2>
+      <p>A GT-3 kétféle módban beszél MIDI-n, és ez határozza meg a használatot:</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th></th><th>Normál mód (patch kijelzés)</th><th>BULK LOAD mód („waiting”)</th></tr></thead>
+        <tbody>
+          <tr><td>Szerkesztés (gombok, kapcsolók, típus, név)</td><td><strong>azonnal hallatszik</strong></td><td>csak az EXIT után</td></tr>
+          <tr><td>Kiolvasás (patch, rendszerbeállítás)</td><td>nem válaszol</td><td><strong>működik</strong></td></tr>
+          <tr><td>Write az editorból</td><td>–</td><td><strong>működik</strong>, EXIT-kor tárolja</td></tr>
+          <tr><td>Patchváltás</td><td>működik, mindkét irányban</td><td>–</td></tr>
+        </tbody>
+      </table></div>
+      <p><strong>BULK LOAD-ba lépés a pedálon:</strong> <kbd>UTILITY</kbd> 4-szer, majd <kbd>PARAMETER ▶</kbd> 10-szer – a kijelzőn „waiting” áll. Kilépés: <kbd>EXIT</kbd>. MIDI-üzenettel nem lehet BULK LOAD-ba küldeni (kipróbáltuk), ezt mindig a pedálon kell megtenni. A gitár BULK LOAD-ban is szól.</p>
+
+      <h3>Csatlakozás (jobb felül az Offline / port felirat)</h3>
       <ol>
         <li>Kattints a jobb felső sarokban az <strong>Offline</strong> feliratra.</li>
         <li>A böngésző első alkalommal <strong>engedélyt kér a MIDI eszközök (és a SysEx) használatához</strong>: engedélyezd. Ha véletlenül letiltottad, a címsor bal oldalán lévő ikonnál, a webhely-beállításokban kapcsolhatod vissza.</li>
-        <li>Válassz egyet:
-          <ul>
-            <li><strong>Auto-detect</strong>: minden porton, mind a 32 device ID-n megkeresi a GT-3-at, és magától csatlakozik. Ehhez működő SysEx kell mindkét irányban.</li>
-            <li>Kézzel: válaszd ki az <strong>Output (to GT-3)</strong> és az <strong>Input (from GT-3)</strong> portot, a <strong>Device ID</strong>-t és a <strong>Patch change channel</strong>-t (a GT-3 MIDI fogadó csatornája), majd <strong>Use these ports</strong>.</li>
-          </ul>
-        </li>
-        <li>Csatlakozás után a felirat zöldre vált, és a port neve meg a device ID látszik rajta. A <strong>Go offline</strong> bontja a kapcsolatot.</li>
-        <li>Csatlakozás után a GT-3 átvált az editorban látható patchre, és az editor kiolvassa. Amíg ez nem sikerül, a feliraton <em>not read</em> látszik, és az editor nem küld változtatást a GT-3-ra, auto write-ot sem végez, így az editor alapértelmezett patchje nem írhatja felül a saját hangzásodat.</li>
+        <li>Az ablak előre kiválasztja a legutóbbi (vagy az első valódi) MIDI portot. Ellenőrizd az <strong>Output (to GT-3)</strong> és <strong>Input (from GT-3)</strong> portot, a <strong>Device ID</strong>-t (a GT-3-on beállított érték, alapból 1) és a <strong>Patch change channel</strong>-t (alapból 1), majd <strong>Connect</strong>.</li>
+        <li>A csatlakozás semmit nem küld a GT-3-nak, és nem kell hozzá BULK LOAD. A felirat zöldre vált. A <strong>Go offline</strong> bontja a kapcsolatot.</li>
       </ol>
-      <p>Az editor megjegyzi a portokat, és újratöltéskor visszacsatlakozik, ha az interfész be van dugva. Ha kihúzod, offline módba vált. Offline minden szerkesztés csak az editorban történik.</p>
-      <p class="note"><strong>Próba:</strong> csatlakozás után a ◀ ▶ gombbal válts patchet. Ha a GT-3 kijelzőjén is átvált, a patchváltás működik. Ha a még ki nem olvasott patch neve is megjelenik az editorban, a SysEx is átmegy.</p>
-      <p class="note">Az Auto-detect a patchváltás csatornáját a device ID-ból számolja (device ID 1 = csatorna 1). Hogy ez a GT-3-on mindig így van-e, még nincs ellenőrizve – ha a patchváltás nem megy, állítsd be kézzel a GT-3 System oldalán látható <em>Rx channel</em>-re.</p>
+      <p>Az editor indításkor <strong>nem csatlakozik magától</strong>, csak megjegyzi a portokat. Csatlakozás után <strong>követi a pedált</strong>: ha a GT-3-on patchet váltasz, az editor is odaáll (a GT-3 minden patchválasztáskor programváltást küld). Ha a kapcsolat ablak nyitva van, amikor a pedálon patchet választasz, az ablak kiírja, hol áll a GT-3. Ha az editor ◀ ▶ gombjával vagy a patchtérképen váltasz, az editor viszi át a GT-3-at.</p>
+
+      <h3>Kiolvasás (Read (BULK) gomb)</h3>
+      <p>Amíg egy patch nincs kiolvasva, az editor az alap („default”) patchet mutatja a helyén – a szerkesztés ilyenkor is hallatszik, de a felület nem a valódi beállításokat mutatja. Ezt jelzi a <em>not read</em> felirat és az arany keretes <strong>Read (BULK)</strong> gomb.</p>
+      <ol>
+        <li>A pedálon válaszd ki a patchet, amelyet szerkeszteni akarsz (az editor odaáll).</li>
+        <li>Lépj a pedálon BULK LOAD-ba („waiting”), és kattints a <strong>Read (BULK)</strong> gombra.</li>
+        <li>Válaszd ki, mit olvasson: <strong>This patch</strong> (alapértelmezett, kb. 1 másodperc – amit a GT-3 most játszik, és ami a helyén tárolva van), vagy <strong>All 140 user patches</strong> (kb. 3 perc). Pipálható a <strong>System settings too</strong> is. Majd <strong>Read</strong>.</li>
+        <li>A végén az editor figyelmeztet: <strong>nyomd meg a pedálon az EXIT-et</strong>. Az EXIT után, a patch kijelzésen újra minden szerkesztés azonnal hallatszik. Amíg az <em>I pressed EXIT</em> gombot meg nem nyomod, a fejlécben piros <em>Press EXIT on the GT-3</em> felirat emlékeztet.</li>
+      </ol>
+      <p class="note">Ha a kiolvasás nem sikerül: a GT-3 tényleg „waiting”-en áll? A Device ID egyezik a pedálon beállítottal? A MIDI dugók rendesen benne vannak? Ha az interfész beragadt, húzd ki és dugd vissza az USB-t.</p>
 
       <h2 id="fejlec"><span class="num">4</span>A fejléc</h2>
       <p>A fejléc minden oldalon ugyanaz, és mindig az éppen szerkesztett patchről szól.</p>
@@ -113,21 +128,22 @@
           <tr><td>◀ ▶ és a kijelző</td><td>Patchváltás mind a 340 patch között (<kbd>←</kbd> <kbd>→</kbd> billentyűvel is). A piros LED-eken a patch száma: <code>U01-1</code>–<code>U35-4</code> a 140 user patch, <code>P36-1</code>–<code>P85-4</code> a 200 preset. A zöld LCD-n a patch neve és a PreAmp / OD típusa.</td></tr>
           <tr><td>A patch neve</td><td>Rákattintva átnevezhető (legfeljebb 11 karakter). <kbd>Enter</kbd> menti, <kbd>Esc</kbd> elveti.</td></tr>
           <tr><td><strong>EDIT</strong> jelzés</td><td>Világít, ha a patchet módosítottad, de még nem írtad el.</td></tr>
-          <tr><td><strong>Write</strong></td><td>Elmenti a szerkesztett hangzást egy user patchbe. Egy ablakban választhatod ki, melyikbe – így egy presetet is elmenthetsz a saját helyedre. A presetek nem írhatók felül.</td></tr>
+          <tr><td><strong>Write</strong></td><td>Elmenti a szerkesztett hangzást egy user patchbe. Egy ablakban választhatod ki, melyikbe – így egy presetet is elmenthetsz a saját helyedre. A presetek nem írhatók felül. Az editor végigvezet: BULK LOAD a pedálon → Write → EXIT (a GT-3 kb. 5 másodpercig ellenőriz: „Checking…”), utána az editor újratölti a patchet. <strong>Gyorsabb út</strong> arra a patchre, amelyen a pedál áll: nyomd meg <strong>a GT-3 saját WRITE gombját</strong> – az elmenti, amit most hallasz, az editorból küldött változásokkal együtt.</td></tr>
           <tr><td><strong>Revert</strong></td><td>Eldobja a módosításokat: visszaáll az az állapot, amelyben a patchre léptél.</td></tr>
-          <tr><td><strong>Auto write</strong></td><td>Bekapcsolva az utolsó változtatás után 5 másodperccel magától beírja a hangzást az aktuális user patchbe (presetnél nem). A Write gomb alján futó csík mutatja, mennyi van hátra; patchváltáskor azonnal ír.</td></tr>
           <tr><td><strong>Init patch</strong></td><td>Betölti az alap („default”) patchet a szerkesztőbe. A Write-tal tárolható.</td></tr>
           <tr><td><strong>Load file…</strong> / <strong>Save file…</strong></td><td>Fájlok, lásd a <a href="#fajlok">10. pontot</a>.</td></tr>
-          <tr><td><strong>Read GT-3</strong></td><td>Kiolvassa mind a 140 user patchet. Csak csatlakozás után használható.</td></tr>
+          <tr><td><strong>Read (BULK)</strong> (jobb felül)</td><td>Kiolvasás a GT-3-ból BULK LOAD módban, lásd a <a href="#csatlakozas">3. pontot</a>. Csak csatlakozva használható.</td></tr>
+          <tr><td><strong>Offline</strong> / a port neve (jobb felül)</td><td>A MIDI kapcsolat ablaka.</td></tr>
         </tbody>
       </table></div>
 
       <h2 id="effektek"><span class="num">5</span>Effects oldal</h2>
       <h3>Patches (patchtérkép)</h3>
-      <p>User és Preset nézet, oldalanként 8 bank, a ‹ › gombokkal lapozható. A még ki nem olvasott patchek helyén üres, halvány gomb áll, csak a sorszámmal; csatlakozva egy ilyen patchet kiválasztáskor kiolvas a GT-3-ból. A <strong>szaggatott sárga keret</strong> azt jelzi, hogy a patch csak az editorban változott (pl. fájlból töltötted be vagy offline írtad), a GT-3-on még a régi van.</p>
+      <p>User és Preset nézet, oldalanként 8 bank, a ‹ › gombokkal lapozható. A még ki nem olvasott patchek helyén üres, halvány gomb áll, csak a sorszámmal; ezeket a Read (BULK) olvassa ki. A <strong>szaggatott sárga keret</strong> azt jelzi, hogy a patch csak az editorban változott (pl. fájlból töltötted be vagy offline írtad), a GT-3-on még a régi van.</p>
 
       <h3>FX Chain</h3>
       <p>A GT-3-on az effektek sorrendje patchenként változtatható. A sáv a patch saját sorrendjét mutatja, a pedálok is így állnak. <strong>Húzd át</strong> az effektet a helyére, vagy jelöld ki, és <kbd>Alt</kbd> + <kbd>←</kbd> / <kbd>→</kbd> billentyűvel léptesd. Egy effektre kattintva megnyílik a részletes panelje.</p>
+      <p class="note">Az új sorrendet a GT-3 <strong>csak mentés és újratöltés után</strong> szólaltatja meg. Sorrendváltás után az editor ezt jelzi: nyomd meg a pedál WRITE gombját, majd az <em>I pressed WRITE – load it again</em> gombbal az editor újratölti a patchet (vagy használd az editor Write gombját, az magától újratölt).</p>
 
       <h3>A pedálok</h3>
       <div class="table-wrap"><table>
@@ -177,8 +193,8 @@
         <thead><tr><th>Gomb</th><th>Mit csinál</th></tr></thead>
         <tbody>
           <tr><td><strong>Select shown</strong> / <strong>Clear selection</strong></td><td>Kijelöli az éppen látható (szűrt) patcheket / törli a kijelölést.</td></tr>
-          <tr><td><strong>Read from GT-3</strong></td><td>Kiolvassa őket (presetet is), folyamatjelzővel.</td></tr>
-          <tr><td><strong>Write to GT-3</strong></td><td>Megerősítés után kiírja az editorbeli példányukat a GT-3-ra (csak user patch).</td></tr>
+          <tr><td><strong>Read from GT-3</strong></td><td>Kiolvassa őket (presetet is), folyamatjelzővel – BULK LOAD módban, utána EXIT.</td></tr>
+          <tr><td><strong>Write to GT-3</strong></td><td>Megerősítés után kiírja az editorbeli példányukat a GT-3-ra (csak user patch) – BULK LOAD módban; a GT-3 az EXIT-kor tárolja őket.</td></tr>
           <tr><td><strong>Copy to…</strong></td><td>Átmásolja őket, sorrendben, egymás utáni user helyekre – csak az editorban; a Write to GT-3 viszi át őket.</td></tr>
           <tr><td><strong>Init</strong></td><td>Az alap patchet teszi a helyükre (csak az editorban).</td></tr>
           <tr><td><strong>Save selected…</strong></td><td>Egy <code>.syx</code> fájlba menti őket.</td></tr>
@@ -188,16 +204,18 @@
       <h2 id="system"><span class="num">8</span>System oldal</h2>
       <p>A GT-3 saját beállításai, a Qt-s program csoportjai szerint: <strong>Output</strong> (milyen erősítőre / fejhallgatóra megy a kimenet), <strong>Global EQ / NS / Reverb</strong> (minden patchre ható korrekció), <strong>Tuner</strong>, <strong>Controls</strong> (kijelző kontraszt, tárcsa funkció, SUB CTL lábkapcsolók), <strong>Patch change</strong>, <strong>MIDI</strong> (fogadó / küldő csatorna, Omni, programváltás, a pedálok CC-kiküldése) és <strong>Manual mode</strong> (mit kapcsolnak a lábkapcsolók manual módban).</p>
       <ul>
-        <li>Ezek <strong>nem patch-beállítások</strong>: a GT-3 minden változtatást azonnal eltárol, ezért itt nincs Write.</li>
-        <li>Csatlakozva az oldal megnyitásakor egyszer kiolvassa a GT-3 beállításait. Offline az alapértékek látszanak, és a változtatások csak az editorban maradnak.</li>
+        <li>Ezek <strong>nem patch-beállítások</strong>: a Qt-s program szerint a GT-3 minden változtatást azonnal eltárol, ezért itt nincs Write (a pedálon még nem ellenőriztük).</li>
+        <li>A GT-3 beállításait a <strong>Read from GT-3</strong> gomb (vagy a Read (BULK) ablak <em>System settings too</em> pipája) olvassa ki – BULK LOAD módban. Addig, és offline, az alapértékek látszanak.</li>
         <li><strong>Send all to GT-3</strong> az összes itt látható beállítást kiküldi (pl. egy fájlból betöltött mentés visszaállításához). <strong>Load file…</strong> / <strong>Save file…</strong>: a teljes rendszerbeállítás egy fájlban.</li>
       </ul>
 
       <h2 id="kuldes"><span class="num">9</span>Mi jut el a GT-3-ra, és mikor?</h2>
       <ul>
-        <li><strong>Patchváltás:</strong> azonnal Program Change üzenet, a GT-3 átvált.</li>
-        <li><strong>Tekerés, kapcsolás, típusváltás, átnevezés, sorrend:</strong> a változás azonnal átmegy a GT-3 <em>ideiglenes</em> patchébe, így rögtön hallod. <strong>Ez még nem mentés</strong> – patchváltáskor elvész, hacsak előtte nem nyomsz Write-ot (vagy be van kapcsolva az Auto write).</li>
-        <li><strong>Write / Write to GT-3:</strong> véglegesen beírja a patchet a GT-3 memóriájába.</li>
+        <li><strong>Patchváltás:</strong> azonnal Program Change üzenet, a GT-3 átvált. Fordítva is: a pedálon választott patchre az editor is odaáll.</li>
+        <li><strong>Tekerés, kapcsolás, típusváltás, átnevezés:</strong> a változás azonnal átmegy a GT-3 <em>ideiglenes</em> patchébe, így rögtön hallod (normál módban). A GT-3 kijelzője ezt nem mutatja: a kijelzőn a régi érték maradhat, és módosítás-jel sem jelenik meg – a hang számít.</li>
+        <li><strong>Lánc sorrend:</strong> elküldi, de a GT-3 csak mentés és újratöltés után szólaltatja meg (<a href="#effektek">5. pont</a>).</li>
+        <li><strong>Mindez még nem mentés</strong> – patchváltáskor elvész. Mentés: a pedál <strong>WRITE</strong> gombja (az aktuális patchbe, BULK nélkül), vagy az editor <strong>Write</strong> gombja (bármelyik user patchbe, BULK LOAD-on keresztül).</li>
+        <li><strong>Write / Write to GT-3:</strong> BULK LOAD-ban küldi, a GT-3 az EXIT-kor, ellenőrzés után tárolja.</li>
         <li><strong>System oldal:</strong> minden változás azonnal és véglegesen a GT-3-ra kerül.</li>
         <li><strong>Fájlbetöltés, Copy to…, Init:</strong> csak az editorban – a GT-3-ra Write-tal kerülnek.</li>
       </ul>
@@ -207,7 +225,7 @@
       <ul>
         <li><strong>Save file…</strong> (fejléc): <em>This patch, as edited</em> – az éppen szerkesztett hangzás, a még el nem mentett módosításokkal együtt; vagy <em>All user patches</em> – a 140 user patch egy fájlban (a még ki nem olvasottak helyén az alap patch).</li>
         <li><strong>Load file…</strong> (fejléc, vagy húzd a fájlt az ablakra): egy patchet tartalmazó fájl a szerkesztőbe kerül (Write tárolja); több patchet tartalmazó fájl a user helyekre (ezek <em>Editor only</em> állapotúak lesznek, a Library oldalon a Write to GT-3 viszi át őket). Rendszerbeállítás-fájlt a System oldalra tölt.</li>
-        <li><strong>Biztonsági mentés:</strong> Library → User → Select shown → Read from GT-3, majd Save selected…; és a System oldalon Save file….</li>
+        <li><strong>Biztonsági mentés:</strong> Read (BULK) → <em>All 140 user patches</em> (és <em>System settings too</em>), majd Save file… → <em>All user patches</em>; és a System oldalon Save file…. Egy mentett fájl betöltése után a patchek ismertek, a szerkesztéshez nem kell újra kiolvasni őket.</li>
       </ul>
 
       <h2 id="hibak"><span class="num">11</span>Gyakori problémák</h2>
@@ -218,11 +236,12 @@
           <tr><td>„MIDI access denied”</td><td>Letiltottad a MIDI engedélyt. A címsor bal oldalán lévő ikonnál engedélyezd, majd töltsd újra az oldalt. Ha fájlból nyitottad meg és nem jön elő az engedélykérés, indítsd helyi szerverről (<a href="#inditas">2. pont</a>).</td></tr>
           <tr><td>„No MIDI ports found”</td><td>Az interfész nincs bedugva, vagy a rendszer nem ismerte fel. Dugd be, és nyisd meg újra a csatlakozás ablakot.</td></tr>
           <tr><td>„could not open any MIDI input”</td><td>Egy másik program (a Qt-s FloorBoard, egy DAW) foglalja a portot. Zárd be, és próbáld újra.</td></tr>
-          <tr><td>„GT-3 not found on any MIDI port”</td><td>Ellenőrizd, hogy mindkét MIDI kábel be van dugva, keresztbe (<a href="#kell">1. pont</a>). Ha kézi portválasztással a patchváltás működik, de a kiolvasás nem, az interfész nem viszi át a SysEx-et.</td></tr>
-          <tr><td>„expected 23 patch messages from the GT-3, got …”</td><td>A patch csak részben érkezett meg. Próbáld újra; ha ismétlődik, valószínűleg az interfész veszít el adatot a hosszú SysEx üzeneteknél.</td></tr>
+          <tr><td>A kiolvasás nem sikerül („expected 23 patch messages from the GT-3, got 0”)</td><td>A GT-3 csak BULK LOAD módban („waiting”) válaszol. Ellenőrizd a Device ID-t és a dugókat (keresztbe, ütközésig, <a href="#kell">1. pont</a>). Ha előtte működött, és hirtelen semmi nem jön: húzd ki és dugd vissza az interfész USB-jét.</td></tr>
+          <tr><td>„expected 23 patch messages from the GT-3, got …” (0-nál több)</td><td>A patch csak részben érkezett meg. Próbáld újra; ha ismétlődik, az interfész veszít el adatot a hosszú SysEx üzeneteknél.</td></tr>
+          <tr><td>A szerkesztés nem hallatszik</td><td>A GT-3 még BULK LOAD-ban van: nyomd meg az EXIT-et. A lánc sorrendje csak mentés és újratöltés után szól.</td></tr>
           <tr><td>A patchváltás nem megy, a kiolvasás igen</td><td>A patchváltás csatornája nem egyezik a GT-3 fogadó csatornájával. Állítsd be a csatlakozás ablakban a System oldal <em>Rx channel</em> értékére.</td></tr>
-          <tr><td>A „Read GT-3” / „Read from GT-3” gomb szürke</td><td>Előbb csatlakozz (<a href="#csatlakozas">3. pont</a>).</td></tr>
-          <tr><td>A módosítás elveszett patchváltás után</td><td>Patchváltás előtt nyomj Write-ot, vagy kapcsold be az Auto write-ot.</td></tr>
+          <tr><td>A „Read (BULK)” / „Read from GT-3” gomb szürke</td><td>Előbb csatlakozz (<a href="#csatlakozas">3. pont</a>).</td></tr>
+          <tr><td>A módosítás elveszett patchváltás után</td><td>Patchváltás előtt ments: a pedál WRITE gombjával vagy az editor Write gombjával.</td></tr>
         </tbody>
       </table></div>
     </article>

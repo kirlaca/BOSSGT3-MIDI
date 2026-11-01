@@ -1,4 +1,4 @@
-# GT-3 Editor – Web MIDI változat (készülőben)
+# GT-3 Editor – Web MIDI változat
 
 A Qt-s GT-3 FxFloorBoard böngészős átirata, **backend nélkül**: a böngésző a
 [Web MIDI API](https://developer.mozilla.org/docs/Web/API/Web_MIDI_API)-n keresztül közvetlenül
@@ -9,11 +9,11 @@ A teljes terv: [`../WEBMIDI_FELDERITES.md`](../WEBMIDI_FELDERITES.md).
 
 - [x] 1. `midi.xml` → `gt3-params.js` generátor
 - [x] 2. Protokoll réteg (`gt3.js`) + Web MIDI réteg (`midi.js`)
-- [ ] 3. Próba a pedállal
-- [x] 4–5. Effektek oldal (pedál nélkül kész, a pedállal még ki kell próbálni)
-- [x] 6. EXP / CTL / Assign oldal, FX Chain átrendezés (pedál nélkül kész)
-- [x] 7. Library és System oldal (pedál nélkül kész)
-- [x] 8. Útmutatók: `utmutato.html` (magyar), `guide.html` (angol) – a pedálos próba után frissíteni kell
+- [x] 3. Próba a pedállal (2026-11-01, lásd `../WEBMIDI_FELDERITES.md`): csatlakozás, kiolvasás, élő szerkesztés, Write
+- [x] 4–5. Effektek oldal (a pedállal kipróbálva)
+- [x] 6. EXP / CTL / Assign oldal, FX Chain átrendezés (a lánc kipróbálva; az Assign-oldal változtatásai a pedálon még nem)
+- [x] 7. Library és System oldal (a System oldal írása a pedálon még nem kipróbált)
+- [x] 8. Útmutatók: `utmutato.html` (magyar), `guide.html` (angol) – a mért működéssel frissítve
 
 ## Fájlok
 
@@ -47,16 +47,19 @@ Nyisd meg az `index.html`-t Chrome-ban vagy Edge-ben. Ha `file://`-ról nem kér
 - **Kijelző**: piros LED a patch számmal (`U01-1`, `P36-1`), zöld LCD a névvel (kattintásra átnevezhető,
   11 karakter) és a PreAmp / OD típussal. ◀ ▶ vagy a billentyűzet nyilai lapoznak a 340 patch között.
 - **Patch térkép**: User / Preset, 8 bank oldalanként. Amit még nem olvastunk ki, `- - -`.
-  Kapcsolódva a még ismeretlen patchet kiválasztáskor kiolvassa a GT-3-ból.
+  A még ismeretlen patcheket a Read (BULK) olvassa ki (a GT-3 csak BULK LOAD-ban válaszol).
 - **FX Chain**: a patch saját effekt-sorrendje; húzással (vagy Alt + ← / →) átrendezhető, a pedálok is ebben
   a sorrendben állnak.
 - **Pedálok**: be/ki lábkapcsoló, típusválasztó (SFX, OD/DS, PRE, MOD, RV: ◀ név ▶ LCD-ablak; CS, WAH, DD: kapcsoló),
   a fő knobok. A névtáblára kattintva alul megnyílik a **részletes panel** az adott típus összes paraméterével.
-- **Write**: párbeszédablak, melyik user patchbe (presetbe nem lehet írni); Auto write csak user patchnél.
+- **Write**: párbeszédablak, melyik user patchbe (presetbe nem lehet írni); vezetett BULK LOAD → küldés → EXIT,
+  utána programváltás az írt patchre. Auto write nincs (minden íráshoz BULK LOAD kell). Gyors út: a pedál WRITE gombja.
   **Init patch**: a `default.syx` betöltése. **Load file**: egy patch → a szerkesztőbe, bulk → a user patchekbe.
   **Save file**: az aktuális patch, vagy mind a 140 user patch egy fájlban.
 - Élő szerkesztés: paraméterenként egy DT1 a temp patchbe (`0C 00 blokk offset`), a gyors knob-tekerést
-  25 ms-onként összevonva küldi.
+  25 ms-onként összevonva küldi; normál módban azonnal szól. A lánc-sorrend csak mentés + újratöltés után szól.
+- Kapcsolódás (jobb felül): csak portválasztás, nem küld semmit. A szerkesztő követi a pedál programváltásait
+  (`Midi.watchPatchChanges`). **Read (BULK)**: az aktuális patch (temp + tárolt) vagy mind a 140, 0,5 s szünettel.
 
 ## Az EXP / CTL / Assign oldal
 
@@ -107,5 +110,7 @@ node tools/test_midi.mjs   # midi.js egy szimulált GT-3 ellen (felismerés, olv
 - Kétbájtos értékek (pl. Master BPM, assign Target/Min/Max): MSB, LSB, 7-7 bit.
 - A 17–19. blokk (patch leírás, szerző, jegyzet) csak a FloorBoard fájljaiban létezik,
   `F0 00 …` fejléccel; a pedálra soha nem megy ki.
-- Device ID 00–1F: a felismerés mind a 32-n kérdez, és a válasz device ID-ja dönt.
+- Device ID 00–1F (a pedálon látható 1 = `00`). A GT-3 **RQ1-re csak BULK LOAD-ban válaszol**, és a kért mérettől
+  függetlenül mindig az egész patchet küldi; a DT1-et normál módban élőben, BULK LOAD-ban EXIT után veszi át,
+  a memóriába (`07`/`08 nn`) írást EXIT-kor tárolja. (`Midi.detectGt3` megmaradt, a felület már nem használja.)
 - Patchváltás: `B0 00 <n/100>`, `B0 20 00`, `C0 <n%100>`.
