@@ -5,7 +5,6 @@
 // follow the ME-5 editor (D:\BOSSME5\webmidi\app.js).
 
 const CONN_KEY = 'gt3.webmidi.conn';
-const AUTO_WRITE_KEY = 'gt3.autoWrite';
 const MIDI_CHANNELS = 16;
 const BANKS_PER_PAGE = 8;
 const USER_BANKS = GT3.USER_PATCHES / GT3.PATCHES_PER_BANK;                         // 35
@@ -16,9 +15,8 @@ const state = {
   source: 'Nothing read yet',
   current: 0,
   patch: null,      // the sound being edited (the GT-3's temporary patch)
-  original: null,   // the patch as it was when selected - Revert returns here, even after an auto write
+  original: null,   // the patch as it was when selected - Revert returns here
   conn: null,       // {output, input, dev, channel} when talking to a real GT-3
-  autoWrite: false,
   area: 'user',     // patch map: 'user' | 'preset'
   page: 0,          // patch map page within the area
   detail: null,     // chain code of the pedal shown in the detail panel
@@ -121,11 +119,9 @@ function edit(block, offset, v, { structural = false } = {}) {
   changed(structural);
 }
 
-// Something in state.patch changed: repaint, and restart the auto write countdown.
-// Structural changes (type, on/off, order) rebuild the pedals.
+// Something in state.patch changed: repaint. Structural changes (type, on/off, order) rebuild the pedals.
 function changed(structural = true) {
   if (structural) renderView(); else repaint();
-  queueAutoWrite();
   refreshIndicators();
 }
 
@@ -147,7 +143,6 @@ let loadToken = 0;
 // doesn't know it (the GT-3 answers only in BULK LOAD).
 async function selectPatch(n, { send = true, read = send } = {}) {
   n = (n + GT3.ALL_PATCHES) % GT3.ALL_PATCHES;
-  const wrote = flushAutoWrite();
   await flushSends();
   const token = ++loadToken;
   state.current = n;
@@ -160,7 +155,6 @@ async function selectPatch(n, { send = true, read = send } = {}) {
     return;
   }
   try {
-    await wrote;
     if (send) await Midi.selectPatch(state.conn, n, state.conn.channel);
     if (read && !state.library[n]) {
       // Unknown slot: ask the GT-3 for it, unless the user has moved on meanwhile.
@@ -188,7 +182,6 @@ function showStored() {
 }
 
 function showPatch(patch) {
-  cancelAutoWrite();
   state.patch = GT3.clonePatch(patch);
   state.original = GT3.clonePatch(patch);
   renderAll();
@@ -201,80 +194,61 @@ function followPage() {
   state.page = Math.floor((state.area === 'user' ? bank : bank - USER_BANKS) / BANKS_PER_PAGE);
 }
 
-// ---------------------------------------------------------------- write / auto write
+// ---------------------------------------------------------------- write
 
-const AUTO_WRITE_DELAY = 5000; // keep in sync with the countdown animation in style.css
-let autoTimer = null;
-
-function queueAutoWrite() {
-  cancelAutoWrite();
-  if (!state.autoWrite || state.needsRead || !GT3.isUser(state.current) || !isDirty()) return;
-  autoTimer = setTimeout(() => {
-    autoTimer = null;
-    renderAutoPending();
-    writeTo(state.current, { auto: true });
-  }, AUTO_WRITE_DELAY);
-  renderAutoPending();
-}
-
-function cancelAutoWrite() {
-  clearTimeout(autoTimer);
-  autoTimer = null;
-  renderAutoPending();
-}
-
-// Write now instead of waiting; resolves when done (at once if nothing is pending).
-function flushAutoWrite() {
-  if (autoTimer === null) return Promise.resolve();
-  cancelAutoWrite();
-  return writeTo(state.current, { auto: true });
-}
-
-function setAutoWrite(on) {
-  state.autoWrite = on;
-  try { localStorage.setItem(AUTO_WRITE_KEY, on ? '1' : '0'); } catch { /* storage blocked */ }
-  $('#auto-write').checked = on;
-  if (on) track('auto-write-on');
-  queueAutoWrite();
-}
-
-function renderAutoPending() {
-  const btn = $('#store');
-  btn.classList.remove('pending');
-  if (autoTimer === null) return;
-  void btn.offsetWidth; // reflow so the animation starts over
-  btn.classList.add('pending');
+// The GT-3 takes data for its memory only in BULK LOAD mode and stores it on EXIT, after
+// checking it ("Checking...", about 5 s) - measured 2026-11-01. Guides the user through
+// both; resolves false if they cancel before anything is sent.
+async function inBulkLoad({ title, text, action, work }) {
+  const ready = await Ask.confirm({
+    icon: 'question', title,
+    text: [...[].concat(text), 'Put the GT-3 in BULK LOAD first: UTILITY 4 times, then PARAMETER ▶ 10 times - the display shows "waiting".'],
+    confirmText: action,
+  });
+  if (!ready) return false;
+  await work();
+  await Ask.alert({
+    icon: 'warning', title: 'Press EXIT on the GT-3',
+    text: ['It checks the data ("Checking…", about 5 seconds) and stores it.', 'When it is back on the patch display, press Done.'],
+    confirmText: 'Done',
+  });
+  return true;
 }
 
 // Store the edited patch into user patch n (and on the GT-3 when connected).
-async function writeTo(n, { auto = false } = {}) {
-  const patch = GT3.clonePatch(state.patch); // the user may go on editing while it is sent
+async function writeTo(n) {
+  const patch = GT3.clonePatch(state.patch);
   const label = GT3.patchLabel(n);
-  // An auto write queued before the read would store the placeholder.
-  if (auto && state.needsRead) return;
-  cancelAutoWrite();
   try {
     await flushSends();
-    if (state.conn) await Midi.writePatch(state.conn, patch, n);
+    if (state.conn) {
+      const done = await inBulkLoad({
+        title: `Write to ${label}`,
+        text: `The sound in the editor replaces ${label}${state.library[n] ? ` "${GT3.patchName(state.library[n])}"` : ''} on the GT-3.`,
+        action: 'Write',
+        work: () => Midi.writePatch(state.conn, patch, n),
+      });
+      if (!done) return;
+      // After storing, the GT-3 still plays its old temporary patch - load the written one.
+      await Midi.selectPatch(state.conn, n, state.conn.channel);
+    }
     state.library[n] = patch;
     state.needsRead = false; // the editor's sound is now what that slot holds
     if (state.conn) state.unsynced.delete(n); else state.unsynced.add(n);
     if (n !== state.current) {
-      // Now editing the copy just stored; the GT-3 goes to it too.
+      // Now editing the copy just stored; the GT-3 went to it too.
       state.current = n;
       state.original = GT3.clonePatch(patch);
       followPage();
-      if (state.conn) await Midi.selectPatch(state.conn, n, state.conn.channel);
     }
     renderPatchMap();
     renderDisplay();
     refreshIndicators();
     if (state.view === 'library') renderView();
-    const where = state.conn ? label : `${label} (editor only - offline)`;
-    toast(auto ? `Auto-written to ${where}` : `Written to ${where}`);
-    if (!auto) track(state.conn ? 'write-patch' : 'write-patch-offline');
+    toast(`Written to ${state.conn ? label : `${label} (editor only - offline)`}`);
+    track(state.conn ? 'write-patch' : 'write-patch-offline');
   } catch (e) {
-    toast(`${auto ? 'Auto write' : 'Write'} failed: ${e.message}`, 'error');
+    toast(`Write failed: ${e.message}`, 'error');
   }
 }
 
@@ -298,12 +272,9 @@ function openWriteDialog() {
 }
 
 function revert() {
-  cancelAutoWrite();
   state.patch = GT3.clonePatch(state.original);
   sendTemp();
   changed();
-  // An auto write may already have stored the edit - put the original back right away.
-  if (state.autoWrite && GT3.isUser(state.current) && isDirty()) writeTo(state.current, { auto: true });
 }
 
 function loadInit() {
@@ -899,7 +870,6 @@ function refreshIndicators() {
   $('#revert').disabled = !dirty && GT3.samePatch(state.patch, state.original);
   $('#patch-name').textContent = GT3.patchName(state.patch) || ' ';
   $('#lcd-info').textContent = lcdInfo();
-  $('#auto-write').closest('label').classList.toggle('dim', !GT3.isUser(state.current));
 }
 
 function renderPatchMap() {
@@ -1168,7 +1138,6 @@ function wire() {
     writeTo(Number($('#write-target').value));
   });
   $('#revert').addEventListener('click', revert);
-  $('#auto-write').addEventListener('change', e => setAutoWrite(e.target.checked));
   $('#lib-init').addEventListener('click', loadInit);
   $('#lib-load').addEventListener('click', () => $('#file-input').click());
   $('#file-input').addEventListener('change', e => {
@@ -1232,8 +1201,6 @@ function wire() {
 
 function init() {
   wire();
-  try { state.autoWrite = localStorage.getItem(AUTO_WRITE_KEY) === '1'; } catch { /* storage blocked */ }
-  $('#auto-write').checked = state.autoWrite;
   followPage();
   state.view = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'effects';
   showPatch(GT3.defaultPatch());

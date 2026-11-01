@@ -154,18 +154,21 @@ async function libraryRead() {
 
 async function libraryWrite() {
   const numbers = selection().filter(n => GT3.isUser(n) && state.library[n]);
-  if (!await Ask.confirm({
-    icon: 'question',
+  let done = 0;
+  // BULK LOAD, send, EXIT: the GT-3 stores everything it received when it leaves BULK LOAD.
+  const sent = await inBulkLoad({
     title: `Write ${numbers.length} patches to the GT-3?`,
     text: `${GT3.patchLabel(numbers[0])}${numbers.length > 1 ? ` … ${GT3.patchLabel(numbers[numbers.length - 1])}` : ''} on the GT-3 are overwritten with the editor's copies.`,
-    confirmText: 'Write',
-  })) return;
-  await flushAutoWrite();
-  const done = await forEachPatch('Writing to the GT-3', numbers, async n => {
-    await Midi.writePatch(state.conn, state.library[n], n);
-    state.unsynced.delete(n);
-    await new Promise(r => setTimeout(r, WRITE_PAUSE_MS));
+    action: 'Write',
+    work: async () => {
+      done = await forEachPatch('Writing to the GT-3', numbers, async n => {
+        await Midi.writePatch(state.conn, state.library[n], n);
+        state.unsynced.delete(n);
+        await new Promise(r => setTimeout(r, WRITE_PAUSE_MS));
+      });
+    },
   });
+  if (!sent) return;
   if (done === numbers.length) toast(`Wrote ${done} patches`);
   track('library-write');
   // The GT-3 keeps playing its old temporary patch - load the current one again.

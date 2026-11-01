@@ -187,21 +187,6 @@ button { font: inherit; color: inherit; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
 .btn:disabled { opacity: .4; cursor: not-allowed; }
 
-/* Auto write countdown: a bar fills the bottom of the Write button; the write happens when it is full. */
-#store { position: relative; overflow: hidden; }
-#store.pending::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 100%;
-  height: 3px;
-  background: var(--led);
-  transform-origin: left;
-  animation: auto-write 5s linear forwards;
-}
-@keyframes auto-write { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-
 .toggle { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; cursor: pointer; user-select: none; }
 .toggle input { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); cursor: pointer; }
 .toggle:has(input:checked) { color: var(--text); }
