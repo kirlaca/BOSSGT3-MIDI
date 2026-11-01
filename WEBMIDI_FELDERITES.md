@@ -261,6 +261,9 @@ Az 1–2. lépés a pedál nélkül is elkezdhető; a 3. lépéstől kell a ped�
   CC-vel azonnal és helyesen vált – sima patch kijelzésből
   megismételve (CC 0 → Natural OD, CC 104 → Metal 2) is (a GT-5 SysEx-es típusváltásának gondjai nélkül). Leképezés: érték × 11 / 127, lefelé.
   → A szerkesztő élő knobjai: szabad Assign-ok CC-forrással (patchenként ≤ 8), egyszeri BULK-írással beállítva.
+- **Böngészős próba – élő knobok** (`7bbc53c`): Auto-detect BULK LOAD-ban csatlakozott és kiolvasott; két knob
+  kijelölve, Live (BULK → Send → EXIT → Done) után a Master és a PRE Master / Middle tekerése **hallhatóan, azonnal
+  változtatta a hangot**. A kezelés (UX) még megbeszélendő.
 - Az U35-4 a próbák után a mentésből visszaállítva („PrePH DRIVE”, eredeti hang).
 - Nyitott: system terület írása; a `03` és `05` területek jelentése (a `05`: 4 × 13 db 11 bájtos név?);
   a szerkesztő átalakítása (BULK LOAD-os kapcsolódás, „EXIT után szól” jelzés, patchenkénti Read szünettel,
