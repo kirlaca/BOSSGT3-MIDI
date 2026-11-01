@@ -5,7 +5,7 @@
 
 The patch's 23 blocks are taken from the source file (a backup with the same patch number,
 or any file holding exactly one patch), readdressed to the target slot (07 nn / 08 nn) and
-sent one block per message. --name replaces the 11-character name (block 0C).
+sent one block per message. --name replaces the 11-character name (block 0C), --block any whole block.
 """
 import argparse
 import time
@@ -32,6 +32,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('patch', type=int)
 parser.add_argument('source')
 parser.add_argument('--name')
+parser.add_argument('--block', action='append', default=[],
+                    help='replace one block: <id hex>:<hex bytes, comma-separated>, e.g. 10:01,01,46,00,00,00,64,1A,00,00,7F,04,32,00,32,00')
 parser.add_argument('--gap', type=float, default=20, help='ms between messages (default 20)')
 args = parser.parse_args()
 
@@ -43,6 +45,12 @@ if len(blocks) != 23 or (not own and len(patch_msgs) != 23):
     raise SystemExit(f'{args.source}: no complete patch {args.patch} (or a single patch) in it')
 if args.name is not None:
     blocks[0x0C] = args.name.encode('ascii')[:11].ljust(11)
+for spec in args.block:
+    bid, data = spec.split(':')
+    bid, data = int(bid, 16), bytes(int(x, 16) for x in data.split(','))
+    if len(data) != len(blocks[bid]):
+        raise SystemExit(f'block {bid:02X} has {len(blocks[bid])} bytes, got {len(data)}')
+    blocks[bid] = data
 
 out = t.MidiOut(t.pick(t.output_names(), 'DOREMiDi', 'output'))
 try:

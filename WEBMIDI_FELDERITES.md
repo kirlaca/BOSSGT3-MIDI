@@ -250,6 +250,18 @@ Az 1–2. lépés a pedál nélkül is elkezdhető; a 3. lépéstől kell a ped�
   a többi 22 blokk bájtra azonos. Visszaállítás a mentésből: rendben – de **ha az írt patch az épp betöltött, a
   pedál a régit szólaltatja / mutatja tovább, amíg patchet nem váltanak** (az írás a memóriát frissíti, a tempet nem).
   → A szerkesztő Write után küldjön programváltást az írt patchre (vagy írja a tempet is).
+- **Élő vezérlés MIDI CC + Assign-nal (normál módban):** U35-4 Assign 2 = On, Target Master Level (`01 46`), Min 0,
+  Max 100, Source CC#20 (`1A`), Normal (BULK-írás, EXIT, patchváltás oda-vissza). CC#20 0 → 127, 20 lépés 2 s alatt
+  (`tools/gt3_cc.py 20 0 127 20 100`): **a hangerő tekerés közben fokozatosan nőtt** – azonnal hallható.
+  CC#20 = 0 → elhalkul; patchváltás oda-vissza után **néma marad**: a pedál rendszerében **Assign Hold = On**
+  (`01 02 06` = 01, a mentésből), így betöltéskor az utolsó CC-érték érvényes, nem a tárolt (mint a GT-5-nél).
+  → A szerkesztőnek patchbetöltés után ki kell küldenie az élő knobok értékét.
+- **Típusváltás CC-vel élőben:** U35-4 OD On, Assign 2 = OD Type (`00 31`), 0–11, CC#20. Betöltéskor (Hold, CC 127)
+  EXT OD/DS; CC 0 → kijelzőn Natural OD, torzít; CC 104 → Metal 2 (kijelzőn is), sokkal erősebb torzítás. A típus
+  CC-vel azonnal és helyesen vált – sima patch kijelzésből
+  megismételve (CC 0 → Natural OD, CC 104 → Metal 2) is (a GT-5 SysEx-es típusváltásának gondjai nélkül). Leképezés: érték × 11 / 127, lefelé.
+  → A szerkesztő élő knobjai: szabad Assign-ok CC-forrással (patchenként ≤ 8), egyszeri BULK-írással beállítva.
+- Az U35-4 a próbák után a mentésből visszaállítva („PrePH DRIVE”, eredeti hang).
 - Nyitott: system terület írása; a `03` és `05` területek jelentése (a `05`: 4 × 13 db 11 bájtos név?);
   a szerkesztő átalakítása (BULK LOAD-os kapcsolódás, „EXIT után szól” jelzés, patchenkénti Read szünettel,
   Write után programváltás).
