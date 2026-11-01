@@ -245,5 +245,11 @@ Az 1–2. lépés a pedál nélkül is elkezdhető; a 3. lépéstől kell a ped�
   (`read --gap 0.5`) a maradék 39 patch hibátlanul jött.
 - **Teljes mentés:** `gt3-backup-2026-11-01.syx` (97 798 bájt) = a rendszerterület (`00`–`05`, 164 üzenet) + mind a
   140 user patch (23 blokk, 0 hibás checksum). A GT-3 saját dumpjaival összevetve 5924 átfedő blokk bájtra azonos.
-- Nyitott: memóriába írás (`07 nn`) BULK módban;
-  system terület olvasása / írása; több paraméter egy BULK-menetben; típusváltás, be/ki.
+- **Write a user memóriába** (`tools/gt3_write.py`, U35-4 = `08 0B`, 23 DT1 20 ms-onként, BULK módban): EXIT-kor
+  kb. 5 s „Checking…”, utána tárolva. Visszaolvasva csak a név blokkja (`0C`) tér el a mentéstől („WRITE TEST”),
+  a többi 22 blokk bájtra azonos. Visszaállítás a mentésből: rendben – de **ha az írt patch az épp betöltött, a
+  pedál a régit szólaltatja / mutatja tovább, amíg patchet nem váltanak** (az írás a memóriát frissíti, a tempet nem).
+  → A szerkesztő Write után küldjön programváltást az írt patchre (vagy írja a tempet is).
+- Nyitott: system terület írása; a `03` és `05` területek jelentése (a `05`: 4 × 13 db 11 bájtos név?);
+  a szerkesztő átalakítása (BULK LOAD-os kapcsolódás, „EXIT után szól” jelzés, patchenkénti Read szünettel,
+  Write után programváltás).
