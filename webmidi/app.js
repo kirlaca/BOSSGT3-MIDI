@@ -126,9 +126,20 @@ function changed(structural = true) {
   refreshIndicators();
 }
 
+let chainNoticeShown = false; // once per patch
+
 function setChain(order) {
   queueSend('chain', GT3.setChain(state.patch, order, dev()));
   changed();
+  if (state.conn && !chainNoticeShown) {
+    chainNoticeShown = true;
+    Ask.alert({
+      icon: 'warning', title: 'Chain order changed - now Write',
+      text: ['To keep the new order, store the patch: press WRITE on the GT-3 (quickest, it stores what it plays now), '
+        + 'or use Write here (through BULK LOAD).',
+      'If you change patch first, the new order is lost.'],
+    });
+  }
 }
 
 function rename(name) {
@@ -147,6 +158,7 @@ async function selectPatch(n, { send = true } = {}) {
   await flushSends();
   const token = ++loadToken;
   state.current = n;
+  chainNoticeShown = false;
   followPage();
   state.needsRead = Boolean(state.conn && !state.library[n]);
   showPatch(state.library[n] || GT3.defaultPatch());
