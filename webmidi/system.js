@@ -79,11 +79,6 @@ async function readSystem() {
   }
 }
 
-// Opening the page while connected shows the GT-3's own settings, not the defaults.
-function readSystemOnce() {
-  if (state.conn && !state.systemRead) readSystem();
-}
-
 async function sendSystem() {
   if (!await Ask.confirm({
     title: 'Send all system settings?',

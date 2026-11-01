@@ -75,6 +75,10 @@ button { font: inherit; color: inherit; }
 }
 .status .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #5d6068; }
 .status.online .dot { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+.bulk-read { color: var(--text); font-size: 13px; }
+.bulk-read:disabled { opacity: .4; cursor: not-allowed; }
+/* The patch on screen is not read yet: the button asks for it. */
+.bulk-read.wanted { border-color: var(--accent); color: var(--accent); }
 
 /* ------------------------------------------------------------ patch display + actions */
 

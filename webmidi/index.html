@@ -20,7 +20,9 @@
         <a href="utmutato.html" hreflang="hu" lang="hu">Útmutató</a>
         <a href="guide.html">Guide</a>
       </nav>
-      <button id="conn-status" class="status" type="button">
+      <button id="bulk-read" class="status bulk-read" type="button" disabled
+        title="Read patches from the GT-3 - it answers only in BULK LOAD mode">&#8681; Read (BULK)</button>
+      <button id="conn-status" class="status" type="button" title="MIDI connection">
         <span class="dot"></span><span id="conn-text">Offline</span>
       </button>
     </div>
@@ -52,7 +54,6 @@
       <button id="lib-load" class="btn" type="button">Load file…</button>
       <button id="lib-save" class="btn" type="button">Save file…</button>
       <input id="file-input" type="file" accept=".syx,application/octet-stream" hidden>
-      <button id="lib-read" class="btn" type="button" title="Read the 140 user patches from the GT-3">Read GT-3</button>
       <span id="source" class="source"></span>
     </div>
   </section>
@@ -158,9 +159,9 @@
   <dialog id="conn-dialog">
     <form method="dialog">
       <h2>MIDI connection</h2>
-      <p class="hint">1. Pick the patch you want to edit on the GT-3. 2. Put the GT-3 in BULK LOAD (UTILITY 4 times,
-        PARAMETER ▶ 10 times - "waiting"): only then does it answer. 3. Auto-detect - the editor stays on that patch and reads it.
-        Then press EXIT on the GT-3: every edit is heard at once. Allow MIDI / SysEx access when the browser asks.</p>
+      <p class="hint">Pick the MIDI interface the GT-3 is plugged into. Connecting sends nothing to the GT-3 and needs
+        no BULK LOAD: edits are heard at once, and the editor follows the patches you pick on the GT-3.
+        To see what a patch holds, use Read (BULK). Allow MIDI / SysEx access when the browser asks.</p>
       <label class="field">Output (to GT-3)<select id="port-out"></select></label>
       <label class="field">Input (from GT-3)<select id="port-in"></select></label>
       <div class="field-row">
@@ -170,8 +171,7 @@
       <p id="conn-msg" class="hint"></p>
       <div class="dialog-actions">
         <button id="conn-disconnect" class="btn" type="button">Go offline</button>
-        <button id="conn-detect" class="btn" type="button">Auto-detect</button>
-        <button id="conn-use" class="btn primary" type="button">Use these ports</button>
+        <button id="conn-use" class="btn primary" type="button">Connect</button>
         <button class="btn" value="cancel">Close</button>
       </div>
     </form>
@@ -186,6 +186,24 @@
       <div class="dialog-actions">
         <button class="btn" value="cancel">Cancel</button>
         <button id="write-ok" class="btn primary" type="button">Write</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="read-dialog">
+    <form method="dialog">
+      <h2>Read from the GT-3</h2>
+      <p class="hint">The GT-3 answers only in BULK LOAD mode: UTILITY 4 times, then PARAMETER ▶ 10 times - the display
+        shows "waiting". Then press Read, and EXIT on the GT-3 when it is done.</p>
+      <fieldset class="choice">
+        <label><input type="radio" name="read-what" value="patch" checked> <span id="read-this">This patch</span></label>
+        <label><input type="radio" name="read-what" value="all"> All 140 user patches (about 3 minutes)</label>
+      </fieldset>
+      <label class="toggle"><input id="read-system" type="checkbox"> System settings too</label>
+      <p id="read-msg" class="hint"></p>
+      <div class="dialog-actions">
+        <button class="btn" value="cancel">Cancel</button>
+        <button id="read-ok" class="btn primary" type="button">Read</button>
       </div>
     </form>
   </dialog>
