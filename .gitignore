@@ -11,3 +11,7 @@ docs/*.pdf
 !/gt-3fxfloorboard_source_code_20250420/packager/
 /gt-3fxfloorboard_source_code_20250420/packager/*
 !/gt-3fxfloorboard_source_code_20250420/packager/init patches/
+
+# Python caches and pedal dumps (the user's own patches) - kept locally
+__pycache__/
+/*.syx

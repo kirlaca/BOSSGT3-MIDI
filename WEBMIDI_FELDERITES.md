@@ -207,3 +207,43 @@ Az 1–2. lépés a pedál nélkül is elkezdhető; a 3. lépéstől kell a ped�
   mi jut el a GT-3-ra és mikor, fájlok és biztonsági mentés, gyakori hibák (a kód valódi hibaüzeneteivel).
 - Az elején figyelmeztetés: valódi GT-3-mal még nem próbáltuk ki. A pedálon még nem ellenőrzött részeket
   (device ID ↔ csatorna, Min > Max) az útmutató is így jelzi – a pedálos próba (3. lépés) után frissíteni kell.
+
+### 2026-11-01 – első próba a pedállal (DOREMiDi, Python tesztelő)
+
+- Új eszközök: `tools/gt3_tester.py` (a GT-5-ös tesztelőből: `ports`, `connect --ask id|temp|temp0c|patch`, `scan`,
+  `listen`, `receive`, `handshake`) és `tools/gt3_param.py <0B|0C> <blokk> <offset> <érték>` (egy DT1 a temp patchbe).
+- A pedál: Device ID 1 (SysEx-ben `00`). Patchváltáskor küld: `B0 00 00`, `B0 20 00`, `C0 nn` (1-es csatorna).
+  A gépről küldött programváltást is elfogadja.
+- **Normál (play) módban a GT-3 semmilyen SysEx-re nem reagál:** az identity kérésre (00–1F és 7F) nincs válasz;
+  Master Level DT1 a `0C 00 0A 00` és a `0B 00 0A 00` címre: nincs hatás, akkor sem, ha a kijelzőn a Master Level áll.
+  → A böngészős szerkesztő ezért nem tudta kiolvasni a patchet, így a patchváltáson kívül minden tiltva maradt.
+- **BULK LOAD módban** (UTILITY 4× → PARAMETER 10×, kijelzőn „waiting”):
+  - identity kérés: válasz dev `00`-n és `7F`-en: `F0 41 00 00 1B 12 00 00 00 00 05 01 7A F7` (1 bájt kérésre 2 jön);
+  - patch kérés (`07 00 03 00`, 6 bájt): **a kért mérettől függetlenül az egész patch jön**, 23 blokk, mind jó checksum, 0,85 s;
+  - temp kérés (`0B 00 03 00`): az egész temp patch, **`0B 00` címmel** (a `0C 00`-s kérés még nem próbált);
+  - DT1 a `0B 00 0A 00` és a `0C 00 0A 00` címre is beíródik a tempbe (visszaolvasva `1E`, majd `3C`);
+  - **EXIT után szól** (Master Level 30 → halk, 60 → hangosabb, a kijelző is mutatja). SCR nem kell.
+- A Qt FloorBoard is így működik: a kapcsoló gomb neve „Bulk Mode”, válasz nélkül „BULK MODE connection Required”;
+  paraméterenként egy DT1 a `0C 00` címre, utána semmi; Write előtt „Ensure Bulk Load Mode is selected”.
+- GT-3 MIDI Implementation dokumentum a neten nem található; a kézikönyv csak a Bulk Dump / Load menetét írja le.
+- BULK módban **szól a gitár** (a módosítás előtti hanggal); változás nélkül az EXIT azonnali, a hang nem változik.
+- **Effekt be/ki** (OD/DS On `0C 00 03 00 = 01`, BULK + EXIT): LED ég, torzítás szól – a GT-5-tel ellentétben jó.
+- **Típusváltás** (OD Type Turbo OD → Metal 2, `0C 00 03 01 = 09`, BULK + EXIT): kijelzőn Metal 2, metálos torzítás szól.
+- **Sorozat** (OD Drive 40 → 100, 13 DT1 25 ms-onként, BULK): nincs hiba, a temp `64`, EXIT után szól.
+- **Mentés:** a GT-3 BULK DUMP „System” pontja a rendszerterülettel együtt **minden user patchet** is küld
+  (`00`–`02` rendszer, `03` és `05` ismeretlen területek, `07 00`–`08 0B` patchek), 140 patch ≈ 2 perc.
+  `gt3-dump-system.syx`: rendszer + U01-1…U31-4 (120 s-nál levágva); `gt3-bulk-dump.syx`: az eleje hiányzik
+  (a WRITE a fogadás előtt indult), a vége a `08 05` patch 4. blokkjánál megszakadt – a GT-3 szerint rendben végzett.
+- `gt3_tester.py read` (patchenként RQ1, BULK módban, 23 jó blokk = kész): `gt3-user-patches.syx` = U01-1…U17-2
+  (66 patch) hibátlan, utána **a bemenet elhallgatott**.
+- Azóta: a GT-3 semmire nem válaszol; figyeléskor a patchváltás sem jön be (újradugás, BULK újra, GT-3 + interfész
+  újraindítás után egyszer még egy PC átjött, utána semmi; másik USB-port: semmi). A gép → GT-3 irány él
+  (`C0 01` → U01-2). Ellenpróba: a GT-5 MIDI OUT-járól a DOREMiDi mindent átvett; a dugót a GT-3 MIDI OUT-jába **határozottan
+  visszadugva** a GT-3 patchváltásai ismét hibátlanul jönnek. → **Laza / kontakthibás csatlakozás** volt a GT-3 MIDI OUT-on.
+- Utána a `read` 35 patch után megint elakadt (a kábelhez nem nyúltak); csak az **USB újradugása** segített →
+  a DOREMiDi / Windows bemenet hosszabb SysEx-folyam után beragad (mint a GT-5-nél). Patchenként 0,5 s szünettel
+  (`read --gap 0.5`) a maradék 39 patch hibátlanul jött.
+- **Teljes mentés:** `gt3-backup-2026-11-01.syx` (97 798 bájt) = a rendszerterület (`00`–`05`, 164 üzenet) + mind a
+  140 user patch (23 blokk, 0 hibás checksum). A GT-3 saját dumpjaival összevetve 5924 átfedő blokk bájtra azonos.
+- Nyitott: memóriába írás (`07 nn`) BULK módban;
+  system terület olvasása / írása; több paraméter egy BULK-menetben; típusváltás, be/ki.
