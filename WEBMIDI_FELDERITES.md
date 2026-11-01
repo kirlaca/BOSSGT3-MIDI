@@ -277,6 +277,9 @@ Az 1–2. lépés a pedál nélkül is elkezdhető; a 3. lépéstől kell a ped�
 - **Böngészős Write** (`71b005b`, BULK LOAD → Write → EXIT → programváltás): működik. A felhasználó szerint
   **a pedál saját WRITE gombja** normál kijelzésnél a szerkesztőből élőben küldött változásokkal együtt menti a patchet
   (BULK nélkül) – a Write ablak ezt gyorsabb útként ajánlja. A szerkesztő erről nem értesül (a patch „szerkesztett” marad).
+- **Lánc-sorrend** (`0C 00 0B 00`, 12 bájt, normál módban): a GT-3 az új sorrendet **csak mentés (pedál WRITE vagy
+  BULK-os Write) és újratöltés után** szólaltatja meg. A szerkesztő sorrendváltás után figyelmeztet, és a pedál WRITE-ja
+  után programváltással újratölti a patchet.
 - **BULK LOAD-ba küldés MIDI-ből: nincs rá mód.** A GT-5 MIDI Implementation csak „One way communication”-t (RQ1, DT1)
   ír, handshake-et (WSD/RQD/DAT/ACK) nem, és a címtérképben nincs mód-/parancscím; Bulk Load Ready csak a Utility
   menüből. GT-3-on mérve: Roland RQD (`F0 41 00 00 1B 41 0B 00 03 00 00 00 00 06 6C F7`) normál módban – nincs válasz.

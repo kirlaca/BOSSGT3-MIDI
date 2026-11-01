@@ -133,13 +133,36 @@ function setChain(order) {
   changed();
   if (state.conn && !chainNoticeShown) {
     chainNoticeShown = true;
-    Ask.alert({
-      icon: 'warning', title: 'Chain order changed - now Write',
-      text: ['To keep the new order, store the patch: press WRITE on the GT-3 (quickest, it stores what it plays now), '
-        + 'or use Write here (through BULK LOAD).',
-      'If you change patch first, the new order is lost.'],
-    });
+    chainNotice();
   }
+}
+
+// Measured: the GT-3 plays a new chain order only once the patch is stored and loaded again.
+async function chainNotice() {
+  const n = state.current;
+  const text = ['The GT-3 plays the new order only after the patch is stored and loaded again.',
+    'Quickest: press WRITE on the GT-3 (it stores what it has now, the editor changes included), then let the editor load it again. '
+      + 'Or use Write here (through BULK LOAD) - it loads the patch by itself.',
+    'If you change patch first, the new order is lost.'];
+  if (!GT3.isUser(n)) {
+    Ask.alert({ icon: 'warning', title: 'Chain order changed - now Write', text });
+    return;
+  }
+  const written = await Ask.confirm({
+    icon: 'warning', title: 'Chain order changed - now Write', text,
+    confirmText: 'I pressed WRITE - load it again', cancelText: 'Later',
+  });
+  if (!written || !state.conn || state.current !== n) return;
+  await flushSends();
+  // The GT-3 stored its temporary patch, which is what the editor shows.
+  state.library[n] = GT3.clonePatch(state.patch);
+  state.original = GT3.clonePatch(state.patch);
+  state.needsRead = false;
+  state.unsynced.delete(n);
+  await Midi.selectPatch(state.conn, n, state.conn.channel).catch(e => toast(`Reload failed: ${e.message}`, 'error'));
+  renderPatchMap();
+  refreshIndicators();
+  toast(`${GT3.patchLabel(n)} loaded again - the new order plays now`);
 }
 
 function rename(name) {
